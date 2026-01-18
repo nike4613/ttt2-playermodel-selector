@@ -107,15 +107,19 @@ function ttt2pms.db.SetModelDistinctOptions(opts)
 end
 
 ---@param model string
+---@return boolean
 function ttt2pms.db.DeleteModelDistinctOptions(model)
     local orm = modelBodygroupOptionsOrm:Find(model)
+    local success = false
     if orm then
-        orm:Delete()
+        success = orm:Delete()
     end
 
     if bodygroupDistinctModelsTbl then
         bodygroupDistinctModelsTbl[model] = nil
     end
+
+    return success
 end
 
 function ttt2pms.db.SaveModelDistinctOptions()
@@ -181,6 +185,133 @@ ttt2pms.__ServerOpts_setters = table.Merge(ttt2pms.__ServerOpts_setters, {
         error("not allowed to set modelsWithAllowedDistinctBodygroups", 5)
     end,
 })
+
+concommand.Add("ttt2_pms_distinct_bodygroups_clear", function(ply, cmd, args)
+    -- execute
+    if not ply:IsSuperAdmin() then
+        return
+    end
+
+    if #args > 0 then
+        -- a list of models were specified
+        for _, v in ipairs(args) do
+            if ttt2pms.db.DeleteModelDistinctOptions(v) then
+                print("Deleted model bodygroup options for '" .. v .. "'")
+            else
+                print(
+                    "No bodygroup options configured for model '"
+                        .. v
+                        .. "' (does the model exist?)"
+                )
+            end
+        end
+    else
+        -- nothing was specified, delete everything
+        ttt2pms.db.ClearModelDistinctOptions()
+    end
+end, function(cmd, argStr, args)
+    -- autocomplete
+    local models = ttt2pms.db.GetBodygroupDistinctModels()
+
+    local passed = {}
+    for _, v in ipairs(args) do
+        passed[v] = true
+    end
+
+    local options = {}
+    if #args == 0 then
+        options[#options + 1] = cmd
+    end
+
+    for k, _ in pairs(models) do
+        if passed[k] then
+            -- don't print any options that are already passed
+            continue
+        end
+
+        options[#options + 1] = argStr .. " \"" .. k .. "\""
+    end
+
+    return options
+end, "Clears the configured \"distinct\" bodygroups options (optionally for a specific model).", {})
+
+concommand.Add(
+    "ttt2_pms_distinct_bodygroups_set",
+    function(ply, cmd, args)
+        -- execute
+        if not ply:IsSuperAdmin() then
+            return
+        end
+
+        if #args < 1 then
+            error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
+        end
+
+        local model = args[1]
+        ---@type table<number,BodygroupServer>
+        local bodygroupSettings = {}
+
+        local i = 2
+        while i <= #args do
+            local bodygroup = tonumber(args[i])
+            i = i + 1
+            if bodygroup == nil then
+                error("bodygroup specifier '" .. args[i - 1] .. "' must be integer")
+            end
+
+            if i > #args then
+                error("missing mode of bodygroup '" .. tostring(bodygroup) .. "'")
+            end
+
+            local mode = args[i]
+            i = i + 1
+
+            if mode ~= "pos" and mode ~= "neg" then
+                error(
+                    "mode of bodygroup "
+                        .. tostring(bodygroup)
+                        .. " must be one of 'pos' or 'neg', not '"
+                        .. mode
+                        .. "'"
+                )
+            end
+
+            if i > #args then
+                error("missing values of bodygroup '" .. tostring(bodygroup) .. "'")
+            end
+
+            local valuesStr = args[i]
+            i = i + 1
+
+            local valuesList = string.Split(valuesStr, ",")
+            ---@type table<number>
+            local values = {}
+
+            for _, v in ipairs(valuesList) do
+                local num = tonumber(v)
+                if num == nil then
+                    error("value '" .. v .. "' must be a number")
+                end
+                values[#values + 1] = num
+            end
+
+            bodygroupSettings[bodygroup] = { mode = mode, values = values }
+        end
+
+        ---@type PlayermodelServer
+        local pm = {
+            model = model,
+            bodygroups = bodygroupSettings,
+        }
+
+        pm = table.Merge(ttt2pms.db.GetBodygroupDistinctModels()[pm.model] or {}, pm)
+        ttt2pms.db.SetModelDistinctOptions(pm)
+    end,
+    --[[ ya fuck doing autocomplete for this lmao ]]
+    nil,
+    "Sets distinct bodygroup settings for a model.",
+    {}
+)
 
 ---@param orm PlayerSettingsOrm
 ---@return PlayermodelSettings
