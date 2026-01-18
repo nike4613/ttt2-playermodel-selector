@@ -48,21 +48,31 @@ PLAYERMODEL_COLOR_MODE = {
 ---@class PlayermodelServerSettings
 ---@field allowUserColors       boolean     Whether to allow users to use their own colors.
 ---         When false, all players will use the server-assigned color settings.
+---         `ttt2_pms_allow_user_colors` `ttt2pms.cv.allowUserColors`
 ---@field overrideColor         Color       The server-assigned color to force. This will override
 ---         TTT2's default COLOR_WHITE with `ttt_playercolor_mode 0`.
+---         `ttt2_pms_override_color_r` `ttt2pms.cv.overrideColorR`
+---         `ttt2_pms_override_color_g` `ttt2pms.cv.overrideColorG`
+---         `ttt2_pms_override_color_b` `ttt2pms.cv.overrideColorB`
 ---@field allowUserModels       boolean     Whether to allow users to select their own models.
 ---         When false, the playermodel selector will be unavailable and playermodels will be
 ---         selected according to default TTT2 logic.
+---         `ttt2_pms_allow_user_models` `ttt2pms.cv.allowUserModels`
 ---@field allowModelPerRound    boolean     Whether to allow players to select new models each
 ---         round. When false, playermodels will only be reselected during preparation period of the
 ---         first round on the map.
+---         `ttt2_pms_allow_round_models` `ttt2pms.cv.allowModelPerRound`
 ---@field requireUniqueModels   boolean     Whether to enforce unique playermodels among all
 ---         players. This being set is the only case where most of the player's options do anything.
+---         `ttt2_pms_require_unique_models `ttt2pms.cv.requireUniqueModels`
 ---@field modelsWithAllowedDistinctBodygroups   table<PlayermodelServer> A set of
 ---         playermodels (and their bodygroups) for which instances are considered to be unique if
 ---         the bodygroups are different. This being significant enough to be reasonable is rare
 ---         enough that there is no method to enable this across all playermodels, as there would be
 ---         no point.
+---         `ttt2_pms_clear_distinct_bodygroups [<mdl>]`
+---         `ttt2_pms_set_distinct_bodygroups <mdl> (<bodygroup> <mode> <comma separated values>)+`
+---         (note: `ttt2_pms_set_distinct_bodygroups` is ADDITIVE; it does not replace)
 
 ---@realm server
 ---@class PlayermodelServer
