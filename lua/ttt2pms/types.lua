@@ -44,16 +44,16 @@ PLAYERMODEL_COLOR_MODE = {
 ---@field value         number                      The bodygroup value
 ---@field random        boolean                     Whether the bodygroup's value should be random.
 
----@realm server
+---@realm shared
 ---@class PlayermodelServerSettings
 ---@field allowUserColors       boolean     Whether to allow users to use their own colors.
 ---         When false, all players will use the server-assigned color settings.
 ---         `ttt2_pms_allow_user_colors` `ttt2pms.cv.allowUserColors`
 ---@field overrideColor         Color       The server-assigned color to force. This will override
 ---         TTT2's default COLOR_WHITE with `ttt_playercolor_mode 0`.
----         `ttt2_pms_override_color_r` `ttt2pms.cv.overrideColorR`
----         `ttt2_pms_override_color_g` `ttt2pms.cv.overrideColorG`
----         `ttt2_pms_override_color_b` `ttt2pms.cv.overrideColorB`
+---         `ttt2_pms_override_color_r` `ttt2pms.cv.overrideColor.r``
+---         `ttt2_pms_override_color_g` `ttt2pms.cv.overrideColor.g`
+---         `ttt2_pms_override_color_b` `ttt2pms.cv.overrideColor.b`
 ---@field allowUserModels       boolean     Whether to allow users to select their own models.
 ---         When false, the playermodel selector will be unavailable and playermodels will be
 ---         selected according to default TTT2 logic.
@@ -65,13 +65,14 @@ PLAYERMODEL_COLOR_MODE = {
 ---@field requireUniqueModels   boolean     Whether to enforce unique playermodels among all
 ---         players. This being set is the only case where most of the player's options do anything.
 ---         `ttt2_pms_require_unique_models `ttt2pms.cv.requireUniqueModels`
+---@realm server
 ---@field modelsWithAllowedDistinctBodygroups   table<PlayermodelServer> A set of
 ---         playermodels (and their bodygroups) for which instances are considered to be unique if
 ---         the bodygroups are different. This being significant enough to be reasonable is rare
 ---         enough that there is no method to enable this across all playermodels, as there would be
 ---         no point.
----         `ttt2_pms_clear_distinct_bodygroups [<mdl>]`
----         `ttt2_pms_set_distinct_bodygroups <mdl> (<bodygroup> <mode> <comma separated values>)+`
+---         `ttt2_pms_distinct_bodygroups_clear [<mdl>]`
+---         `ttt2_pms_distinct_bodygroups_set <mdl> (<bodygroup> <mode> <comma separated values>)+`
 ---         (note: `ttt2_pms_set_distinct_bodygroups` is ADDITIVE; it does not replace)
 
 ---@realm server
@@ -88,3 +89,27 @@ PLAYERMODEL_COLOR_MODE = {
 ---         The distinct groupings are: [all values not considered distinct],distinct1,distinct2,etc...
 ---         Thus, if values 3, 4, and 5 are considered distinct, then the groups are [0,1,2],[3],[4],[5].
 ---@field values        table<number>   The values associated with this configured bodygroup.
+
+ttt2pms = ttt2pms or {}
+
+---@type PlayermodelServerSettings
+---@diagnostic disable-next-line
+ttt2pms.ServerOpts = {}
+
+---@type table<string,function>
+ttt2pms.__ServerOpts_getters = table.Merge(ttt2pms.__ServerOpts_getters or {}, {})
+---@type table<string,function>
+ttt2pms.__ServerOpts_setters = table.Merge(ttt2pms.__ServerOpts_setters or {}, {})
+
+setmetatable(ttt2pms.ServerOpts, {
+    __index = function(tbl, name)
+        local get = ttt2pms.__ServerOpts_getters[name]
+        return get and get(tbl)
+    end,
+    __newindex = function(tbl, name, value)
+        local set = ttt2pms.__ServerOpts_setters[name]
+        if set then
+            set(tbl, value)
+        end
+    end,
+})

@@ -1,0 +1,3 @@
+---@realm server
+
+local a
