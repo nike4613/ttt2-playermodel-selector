@@ -66,7 +66,7 @@ PLAYERMODEL_COLOR_MODE = {
 ---         players. This being set is the only case where most of the player's options do anything.
 ---         `ttt2_pms_require_unique_models `ttt2pms.cv.requireUniqueModels`
 ---@realm server
----@field modelsWithAllowedDistinctBodygroups   table<PlayermodelServer> A set of
+---@field modelsWithAllowedDistinctBodygroups   table<string,PlayermodelServer> A set of
 ---         playermodels (and their bodygroups) for which instances are considered to be unique if
 ---         the bodygroups are different. This being significant enough to be reasonable is rare
 ---         enough that there is no method to enable this across all playermodels, as there would be
