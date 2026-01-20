@@ -1,5 +1,3 @@
-util.AddNetworkString("TTT2PMS_SyncPlayerSettings")
-
 ttt2pms = ttt2pms or {}
 
 if SERVER then
@@ -37,9 +35,12 @@ if SERVER then
         ttt2pms.SyncPlayerSettings(ply)
     end)
 
-    net.ReceiveStream("TTT2PMS_SyncPlayerSettings", function(plySettings, ply)
-        -- client has sent us updated settings for them, store that
-        ttt2pms.db.SaveOptionsForPlayer(ply, plySettings)
+    hook.Remove("Initialize", "TTT2PMS_PlySync")
+    hook.Add("Initialize", "TTT2PMS_PlySync", function()
+        net.ReceiveStream("TTT2PMS_SyncPlayerSettings", function(plySettings, ply)
+            -- client has sent us updated settings for them, store that
+            ttt2pms.db.SaveOptionsForPlayer(ply, plySettings)
+        end)
     end)
 end
 
@@ -71,7 +72,10 @@ if CLIENT then
         ttt2pms.SyncPlayerSettings()
     end
 
-    net.ReveiveStream("TTT2PMS_SyncPlayerSettings", function(plySettings)
-        playerSettings = plySettings
+    hook.Remove("Initialize", "TTT2PMS_PlySync")
+    hook.Add("Initialize", "TTT2PMS_PlySync", function()
+        net.ReceiveStream("TTT2PMS_SyncPlayerSettings", function(plySettings)
+            playerSettings = plySettings
+        end)
     end)
 end

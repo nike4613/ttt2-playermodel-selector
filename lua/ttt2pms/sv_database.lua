@@ -13,31 +13,37 @@
 ---@field Save function():boolean
 ---@field name string the name of the model
 
-local modelBodygroupOptionsTblName = "ttt2pms_sv_model_distinct_bodygroups"
-sql.CreateSqlTable(modelBodygroupOptionsTblName, {
-    bodygroups_pon = { typ = "string", default = pon.encode({}) },
-})
----@type ORM<ModelBodygroupOptionsMdl>
-local modelBodygroupOptionsOrm = orm.Make(modelBodygroupOptionsTblName)
+local ponEmptyTbl = "[}"
 
+local modelBodygroupOptionsTblName = "ttt2pms_sv_model_distinct_bodygroups"
+---@type ORM<ModelBodygroupOptionsMdl>
+local modelBodygroupOptionsOrm
 ---@class ModelBodygroupOptionsMdl: ORMObject
 ---@field bodygroups_pon string the @{pon} encoded bodygroups configuration
 
 local playerSettingsTblName = "ttt2pms_cl_settings"
-sql.CreateSqlTable(playerSettingsTblName, {
-    globalColor = { typ = "color" },
-    defaultColorMode = { typ = "number", default = 0 },
-
-    usePrimaryModel = { typ = "boolean", default = false },
-    usePriorityModels = { typ = "boolean", default = false },
-    useRandomModels = { typ = "boolean", default = false },
-
-    primaryModel_pon = { typ = "string", default = pon.encode(nil) },
-    priorityModels_pon = { typ = "string", default = pon.encode({}) },
-    randomModels_pon = { typ = "string", default = pon.encode({}) },
-})
 ---@type ORM<PlayerSettingsOrm>
-local playerSettingsOrm = orm.Make(playerSettingsTblName)
+local playerSettingsOrm
+hook.Add("Initialize", "TTT2PMS_Database", function()
+    sql.CreateSqlTable(modelBodygroupOptionsTblName, {
+        bodygroups_pon = { typ = "string", default = ponEmptyTbl },
+    })
+    modelBodygroupOptionsOrm = orm.Make(modelBodygroupOptionsTblName)
+
+    sql.CreateSqlTable(playerSettingsTblName, {
+        globalColor = { typ = "color" },
+        defaultColorMode = { typ = "number", default = 0 },
+
+        usePrimaryModel = { typ = "boolean", default = false },
+        usePriorityModels = { typ = "boolean", default = false },
+        useRandomModels = { typ = "boolean", default = false },
+
+        primaryModel_pon = { typ = "string", default = ponEmptyTbl },
+        priorityModels_pon = { typ = "string", default = ponEmptyTbl },
+        randomModels_pon = { typ = "string", default = ponEmptyTbl },
+    })
+    playerSettingsOrm = orm.Make(playerSettingsTblName)
+end)
 
 ---@class PlayerSettingsOrm: ORMObject
 ---@field name string the SteamID64 of the player this is for
@@ -313,6 +319,15 @@ concommand.Add(
     {}
 )
 
+local function ponDecodeMaybeNil(str)
+    local res = pon.decode(str)
+    if type(res) == "table" and #table == 0 then
+        return nil
+    else
+        return res
+    end
+end
+
 ---@param orm PlayerSettingsOrm
 ---@return PlayermodelSettings
 local function DecodePlayerOrm(orm)
@@ -322,7 +337,7 @@ local function DecodePlayerOrm(orm)
         usePrimaryModel = orm.usePrimaryModel,
         usePriorityModels = orm.usePriorityModels,
         useRandomModels = orm.useRandomModels,
-        primaryModel = pon.decode(orm.primaryModel_pon),
+        primaryModel = ponDecodeMaybeNil(orm.primaryModel_pon),
         priorityModels = pon.decode(orm.priorityModels_pon),
         randomModels = pon.decode(orm.randomModels_pon),
     }
@@ -337,7 +352,7 @@ local function EncodePlayerOrm(opts)
         usePrimaryModel = opts.usePrimaryModel,
         usePriorityModels = opts.usePriorityModels,
         useRandomModels = opts.useRandomModels,
-        primaryModel_pon = pon.encode(opts.primaryModel),
+        primaryModel_pon = pon.encode(opts.primaryModel or {}),
         priorityModels_pon = pon.encode(opts.priorityModels),
         randomModels_pon = pon.encode(opts.randomModels),
     }
