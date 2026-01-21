@@ -34,10 +34,11 @@ PLAYERMODEL_COLOR_MODE = {
 
 ---@realm shared
 ---@class Playermodel
----@field model         string                      The name of the model.
----@field color         Color                       The model-specific color. Only meaningful with @{PLAYERMODEL_COLOR_MODE.MODEL}.
----@field colorMode     PLAYERMODEL_COLOR_MODE|nil  The color mode to use for this model.
----@field bodygroups    table<number,BodygroupSettings>    The bodygroup settings for the playermodel.
+---@field model         string                              The name of the model.
+---@field color         Color                               The model-specific color. Only meaningful with @{PLAYERMODEL_COLOR_MODE.MODEL}.
+---@field colorMode     PLAYERMODEL_COLOR_MODE|nil          The color mode to use for this model.
+---@field skin          number                              The model skin to use
+---@field bodygroups    table<number,BodygroupSettings>     The bodygroup settings for the playermodel.
 
 ---@realm shared
 ---@class BodygroupSettings
@@ -73,11 +74,13 @@ PLAYERMODEL_COLOR_MODE = {
 ---         no point.
 ---         `ttt2_pms_distinct_bodygroups_clear [<mdl>]`
 ---         `ttt2_pms_distinct_bodygroups_set <mdl> (<bodygroup> <mode> <comma separated values>)+`
----         (note: `ttt2_pms_set_distinct_bodygroups` is ADDITIVE; it does not replace)
+---         (note: `ttt2_pms_set_distinct_bodygroups` is ADDITIVE; it does not replace. If
+---         <bodygroup> is "skin", applies to the skin instead.)
 
 ---@realm server
 ---@class PlayermodelServer
 ---@field model         string                          The model name
+---@field skin          BodygroupServer|nil             The distinct options for the skin
 ---@field bodygroups    table<number,BodygroupServer>   The set of bodygroups which have options
 ---         configured. Any bodygroups which are unconfigured are not considered to be distinct.
 

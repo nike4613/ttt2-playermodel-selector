@@ -256,13 +256,16 @@ concommand.Add(
         local model = args[1]
         ---@type table<number,BodygroupServer>
         local bodygroupSettings = {}
+        ---@type nil|BodygroupServer
+        local skinSettings
 
         local i = 2
         while i <= #args do
-            local bodygroup = tonumber(args[i])
+            local bodygroupStr = args[i]
+            local bodygroup = tonumber(bodygroupStr)
             i = i + 1
-            if bodygroup == nil then
-                error("bodygroup specifier '" .. args[i - 1] .. "' must be integer")
+            if bodygroup == nil and bodygroupStr ~= "skin" then
+                error("bodygroup specifier '" .. bodygroupStr .. "' must be integer or 'skin'")
             end
 
             if i > #args then
@@ -301,14 +304,19 @@ concommand.Add(
                 values[#values + 1] = num
             end
 
-            bodygroupSettings[bodygroup] = { mode = mode, values = values }
+            if bodygroup then
+                bodygroupSettings[bodygroup] = { mode = mode, values = values }
+            else
+                skinSettings = { mode = mode, values = values }
+            end
         end
 
         ---@type PlayermodelServer
-        local pm = {
-            model = model,
-            bodygroups = bodygroupSettings,
-        }
+        local pm = { model = model, bodygroups = bodygroupSettings }
+
+        if skinSettings then
+            pm.skin = skinSettings
+        end
 
         pm = table.Merge(ttt2pms.db.GetBodygroupDistinctModels()[pm.model] or {}, pm)
         ttt2pms.db.SetModelDistinctOptions(pm)
