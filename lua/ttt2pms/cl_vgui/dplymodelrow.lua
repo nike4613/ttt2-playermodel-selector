@@ -93,9 +93,7 @@ function DPlyModelRow_TTT2PMS:PerformLayout()
     end
 
     self.pnlModel.Entity:SetSkin(self.mdlSkin)
-    for i = 0, self.pnlModel.Entity:GetNumBodyGroups() - 1 do
-        self.pnlModel.Entity:SetBodygroup(i, self.mdlBodygroups[i] or 0)
-    end
+    ttt2pms.util.ReplaceBodygroupTbl(self.pnlModel.Entity, self.mdlBodygroups)
 end
 
 function DPlyModelRow_TTT2PMS:Paint(w, h)

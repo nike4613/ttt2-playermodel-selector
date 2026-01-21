@@ -30,6 +30,7 @@ end
 
 include_sh("ttt2pms/types.lua")
 include_sh("ttt2pms/sh_convars.lua")
+include_sh("ttt2pms/sh_util.lua")
 include_sv("ttt2pms/sv_database.lua")
 include_sh("ttt2pms/sh_plysettings.lua")
 

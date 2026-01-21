@@ -14,10 +14,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
         row:SetModel(LocalPlayer():GetModel())
 
         local skin = LocalPlayer():GetSkin()
-        local bodygroups = {}
-        for i = 0, LocalPlayer():GetNumBodyGroups() - 1 do
-            bodygroups[i] = LocalPlayer():GetBodygroup(i)
-        end
+        local bodygroups = ttt2pms.util.GetBodygroupTbl(LocalPlayer())
         row:SetBodygroups(skin, bodygroups)
     end
 end
