@@ -12,6 +12,13 @@ function CLGAMEMODESUBMENU:Populate(parent)
         local row = vgui.Create("DPlyModelRow_TTT2PMS", form)
         form:AddItem(row)
         row:SetModel(LocalPlayer():GetModel())
+        local plyColor = ttt2pms.util.Vec2Col(LocalPlayer():GetPlayerColor())
+        row:SetPlayerColor(plyColor)
+        if i == 2 then
+            row:SetDisplayColor(nil)
+        else
+            row:SetDisplayColor(plyColor)
+        end
 
         local skin = LocalPlayer():GetSkin()
         local bodygroups = ttt2pms.util.GetBodygroupTbl(LocalPlayer())

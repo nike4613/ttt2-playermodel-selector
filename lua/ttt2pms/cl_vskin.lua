@@ -31,3 +31,9 @@ end
 
 hook.Add("Initialize", "TTT2PMS_UpdateDefaultSkin", UpdateDefaultSkin)
 hook.Add("OnReloaded", "TTT2PMS_UpdateDefaultSkin", UpdateDefaultSkin)
+
+ttt2pms = ttt2pms or {}
+ttt2pms.cl = ttt2pms.cl or {}
+
+-- Clientside constants
+ttt2pms.cl.plyModelRowHeight = 64
