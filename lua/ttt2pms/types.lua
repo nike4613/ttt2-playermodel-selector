@@ -37,7 +37,7 @@ PLAYERMODEL_COLOR_MODE = {
 ---@field model         string                              The name of the model.
 ---@field color         Color                               The model-specific color. Only meaningful with @{PLAYERMODEL_COLOR_MODE.MODEL}.
 ---@field colorMode     PLAYERMODEL_COLOR_MODE|nil          The color mode to use for this model.
----@field skin          number                              The model skin to use
+---@field skin          BodygroupSettings                   The model skin to use
 ---@field bodygroups    table<number,BodygroupSettings>     The bodygroup settings for the playermodel.
 
 ---@realm shared

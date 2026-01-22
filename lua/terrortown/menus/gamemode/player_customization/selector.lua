@@ -22,6 +22,13 @@ function CLGAMEMODESUBMENU:Populate(parent)
 
         local skin = LocalPlayer():GetSkin()
         local bodygroups = ttt2pms.util.GetBodygroupTbl(LocalPlayer())
-        row:SetBodygroups(skin, bodygroups)
+
+        local skin2 = { random = math.random() < 0.5, value = skin }
+        local bodygroups2 = {}
+        for k, v in pairs(bodygroups) do
+            bodygroups2[k] = { random = math.random() < 0.5, value = v }
+        end
+
+        row:SetBodygroups(skin2, bodygroups2)
     end
 end

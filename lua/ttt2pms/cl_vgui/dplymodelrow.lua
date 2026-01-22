@@ -11,6 +11,7 @@ function DPlyModelRow_TTT2PMS:Init()
     self.mdlBodygroups = nil
     self.mdlPlyColor = COLOR_WHITE
     self.mdlDispColor = color_transparent
+    self.timerTime = 0
 
     self:DockPadding(4, 4, 4, 4)
 
@@ -74,8 +75,8 @@ function DPlyModelRow_TTT2PMS:GetModel()
 end
 
 ---
----@return number skinId
----@return table<number,number> bodygroups
+---@return number|BodygroupSettings skinId
+---@return table<number,number|BodygroupSettings> bodygroups
 function DPlyModelRow_TTT2PMS:GetBodygroups()
     return self.mdlSkin, self.mdlBodygroups
 end
@@ -91,8 +92,8 @@ function DPlyModelRow_TTT2PMS:SetModel(mdl)
 end
 
 ---
----@param skin number
----@param bodygroups table<number,number>
+---@param skin number|BodygroupSettings
+---@param bodygroups table<number,number|BodygroupSettings>
 function DPlyModelRow_TTT2PMS:SetBodygroups(skin, bodygroups)
     self.mdlSkin = skin
     self.mdlBodygroups = table.Copy(bodygroups)
@@ -111,6 +112,41 @@ end
 function DPlyModelRow_TTT2PMS:SetDisplayColor(color)
     self.mdlDispColor = color
     self:InvalidateLayout()
+end
+
+---@param bgrp number|BodygroupSettings
+---@return number
+local function GetBodygroupImmediateVal(bgrp, max)
+    if type(bgrp) == "number" then
+        return bgrp
+    end
+
+    if not bgrp.random then
+        return bgrp.value
+    end
+
+    return math.random(0, max)
+end
+
+local function UpdateBodygroups(self)
+    if not self.mdlSkin or not self.mdlBodygroups then
+        return
+    end
+
+    self.pnlModel.Entity:SetSkin(
+        GetBodygroupImmediateVal(self.mdlSkin, self.pnlModel.Entity:SkinCount())
+    )
+    for i = 0, self.pnlModel.Entity:GetNumBodyGroups() - 1 do
+        local bgrp = self.mdlBodygroups[i]
+        if not bgrp then
+            self.pnlModel.Entity:SetBodygroup(i, 0)
+        else
+            self.pnlModel.Entity:SetBodygroup(
+                i,
+                GetBodygroupImmediateVal(bgrp, self.pnlModel.Entity:GetBodygroupCount(i))
+            )
+        end
+    end
 end
 
 function DPlyModelRow_TTT2PMS:PerformLayout()
@@ -142,16 +178,31 @@ function DPlyModelRow_TTT2PMS:PerformLayout()
         self.pnlColorDisplayInner:SetPos(-100000, -100000)
     end
 
-    self.pnlModel.Entity:SetSkin(self.mdlSkin)
-    ttt2pms.util.ReplaceBodygroupTbl(self.pnlModel.Entity, self.mdlBodygroups)
+    ---@param bgrp number|BodygroupSettings
+    ---@return string
+    local function GetBodygroupStr(bgrp)
+        if type(bgrp) == "table" then
+            if bgrp.random then
+                return "?"
+            else
+                return tostring(bgrp.value)
+            end
+        else
+            return tostring(bgrp)
+        end
+    end
 
-    local bodygroupStr = tostring(self.mdlSkin)
+    UpdateBodygroups(self)
+
+    local bodygroupStr = GetBodygroupStr(self.mdlSkin)
     for i = 0, self.pnlModel.Entity:GetNumBodyGroups() - 1 do
         if self.pnlModel.Entity:GetBodygroupCount(i) <= 1 then
             -- don't show any bodygroups with only one variant
             continue
         end
-        bodygroupStr = bodygroupStr .. "/" .. tostring(self.pnlModel.Entity:GetBodygroup(i))
+
+        local bgrp = self.mdlBodygroups[i]
+        bodygroupStr = bodygroupStr .. "/" .. GetBodygroupStr(bgrp)
     end
 
     self.pnlBodygroups:SetText(bodygroupStr)
@@ -161,6 +212,11 @@ end
 
 function DPlyModelRow_TTT2PMS:Paint(w, h)
     derma.SkinHook("Paint", "PlyModelRow_TTT2PMS", self, w, h)
+
+    if UnPredictedCurTime() - self.timerTime >= 0.5 then
+        self.timerTime = UnPredictedCurTime()
+        UpdateBodygroups(self)
+    end
 end
 
 derma.DefineControl(
