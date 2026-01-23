@@ -1,16 +1,15 @@
 ---@realm server
 
----@generic T: ORMObject
 ---@class ORM<T>
----@field All function():table<T>|nil
----@field Find function(name:string):T|nil
----@field New function(tbl:table):T
----@field Where function(filters:table):table<T>|nil
+---@field All fun():table<T>|nil
+---@field Find fun(name:string):T|nil
+---@field New fun(tbl:table):T
+---@field Where fun(filters:table):table<T>|nil
 
 ---@class ORMObject
----@field Delete function():boolean
----@field Refresh function():boolean
----@field Save function():boolean
+---@field Delete fun():boolean
+---@field Refresh fun():boolean
+---@field Save fun():boolean
 ---@field name string the name of the model
 
 local ponEmptyTbl = "[}"

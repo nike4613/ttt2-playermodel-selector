@@ -169,12 +169,13 @@ function DPlyModelRow_TTT2PMS:PerformLayout()
     end
 
     if self.mdlDispColor then
+        self.pnlColorDisplayInner:SetVisible(true)
         self.pnlColorDisplayInner:Dock(FILL)
         self.pnlColorDisplayInner:SetColor(self.mdlDispColor, true)
         self.pnlColorDisplayInner:SetTooltip(nil)
     else
         self.pnlColorDisplayInner:SetSize(0, 0)
-        self.pnlColorDisplayInner:SetPos(-100000, -100000)
+        self.pnlColorDisplayInner:SetVisible(false)
     end
 
     ---@param bgrp number|BodygroupSettings

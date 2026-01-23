@@ -4,6 +4,21 @@ CLGAMEMODESUBMENU.base = "base_gamemodesubmenu"
 CLGAMEMODESUBMENU.priority = 99
 CLGAMEMODESUBMENU.title = "submenu_customization_selector"
 
+---
+---@param parent Panel
+---@return Panel
+local function FindParentScrollPanel(parent)
+    while parent and type(parent) ~= "DScrollPanelTTT2" do
+        parent = parent:GetParent()
+    end
+
+    if not parent then
+        error("Cannot find containing scroll panel")
+    end
+
+    return parent
+end
+
 function CLGAMEMODESUBMENU:Populate(parent)
     local form = vgui.CreateTTT2Form(parent, "header_customization_selector_form1")
 
@@ -44,4 +59,14 @@ function CLGAMEMODESUBMENU:Populate(parent)
 
         row:SetBodygroups(skin2, bodygroups2)
     end
+
+    local scrollPanel = FindParentScrollPanel(parent)
+    local dragParent = scrollPanel:Add("Panel")
+    ---@diagnostic disable-next-line
+    function dragParent:PerformLayout()
+        self:SetPos(0, 0)
+        self:SetWide(scrollPanel:GetWide())
+        self:SetTall(scrollPanel:GetTall())
+    end
+    dragParent:InvalidateLayout()
 end
