@@ -4,11 +4,18 @@ local vskinGetBackgroundColor
 local drawRoundedBox
 local drawRoundedBoxEx
 
-local function PaintPlyModelRow(skin, pnl, w, h)
-    local colorBox = utilGetChangedColor(vskinGetBackgroundColor(), 20)
+local function GetBoxColor()
+    return utilGetChangedColor(vskinGetBackgroundColor(), 20)
+end
 
-    drawRoundedBoxEx(4, 0, 0, w, h, colorBox)
-    --    drawRoundedBox(4, 1, 1, w - 2, h - 2, colorBox)
+local function PaintPlyModelRow(skin, pnl, w, h)
+    drawRoundedBox(4, 0, 0, w, h, GetBoxColor())
+end
+
+local function PaintPlyModelDropCell(skin, pnl, w, h)
+    local colorBox = GetBoxColor()
+    drawRoundedBox(4, 0, 0, w, h, colorBox)
+    drawRoundedBox(2, 2, 2, w - 4, h - 4, vskinGetBackgroundColor())
 end
 
 local function UpdateDefaultSkin()
@@ -21,6 +28,7 @@ local function UpdateDefaultSkin()
     end
 
     SetFunc("PaintPlyModelRow_TTT2PMS", PaintPlyModelRow)
+    SetFunc("PaintPlyModelDropCell_TTT2PMS", PaintPlyModelDropCell)
 
     utilGetChangedColor = util.GetChangedColor
     vskinGetBackgroundColor = vskin.GetBackgroundColor
@@ -37,3 +45,4 @@ ttt2pms.cl = ttt2pms.cl or {}
 
 -- Clientside constants
 ttt2pms.cl.plyModelRowHeight = 64
+ttt2pms.cl.plyModelRowVPadding = 4

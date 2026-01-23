@@ -9,8 +9,16 @@ function CLGAMEMODESUBMENU:Populate(parent)
 
     for i = 1, 5 do
         ---@type DPlyModelRow_TTT2PMS
-        local row = vgui.Create("DPlyModelRow_TTT2PMS", form)
-        form:AddItem(row)
+        local row = vgui.Create("DPlyModelRow_TTT2PMS", parent)
+        if i == 5 then
+            local it = vgui.Create("DPlyModelDropCell_TTT2PMS", parent)
+            row:SetParent(it)
+            row:Dock(FILL)
+            form:AddItem(it)
+        else
+            form:AddItem(row)
+        end
+
         row:SetModel(LocalPlayer():GetModel())
         local plyColor = ttt2pms.util.Vec2Col(LocalPlayer():GetPlayerColor())
         row:SetPlayerColor(plyColor)
@@ -18,6 +26,11 @@ function CLGAMEMODESUBMENU:Populate(parent)
             row:SetDisplayColor(nil)
         else
             row:SetDisplayColor(plyColor)
+        end
+
+        if i == 3 then
+            local it = vgui.Create("DPlyModelDropCell_TTT2PMS", parent)
+            form:AddItem(it)
         end
 
         local skin = LocalPlayer():GetSkin()

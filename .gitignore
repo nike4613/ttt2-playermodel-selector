@@ -56,5 +56,4 @@ todo.txt
 addon.json
 *.gma
 .luarc.json
-
-ttt2.jpg
+Session.vim

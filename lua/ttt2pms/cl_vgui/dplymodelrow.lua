@@ -10,17 +10,18 @@ function DPlyModelRow_TTT2PMS:Init()
     self.mdlSkin = nil
     self.mdlBodygroups = nil
     self.mdlPlyColor = COLOR_WHITE
-    self.mdlDispColor = color_transparent
+    self.mdlDispColor = nil
     self.timerTime = 0
 
-    self:DockPadding(4, 4, 4, 4)
+    local padding = ttt2pms.cl.plyModelRowVPadding
+    self:DockPadding(padding, padding, padding, padding)
 
     ---@class DPanelTTT2 : DPanel, Panel
 
     ---@type DPanelTTT2
     local pnlBody = self:Add("DPanelTTT2")
     pnlBody:Dock(FILL)
-    pnlBody:DockPadding(4, 0, 0, 0)
+    pnlBody:DockPadding(padding, 0, 0, 0)
 
     ---@class DLabelTTT2 : DLabel
     local modelName = pnlBody:Add("DLabelTTT2")
@@ -150,12 +151,12 @@ local function UpdateBodygroups(self)
 end
 
 function DPlyModelRow_TTT2PMS:PerformLayout()
-    --self:SetTall(64)
-    self.pnlModel:SetWide(ttt2pms.cl.plyModelRowHeight)
-    self.pnlModel:SetTall(ttt2pms.cl.plyModelRowHeight)
+    local height = ttt2pms.cl.plyModelRowHeight
+    self.pnlModel:SetWide(height)
+    self.pnlModel:SetTall(height)
 
-    self.pnlColorDisplayArea:SetWide(ttt2pms.cl.plyModelRowHeight / 2)
-    self.pnlColorDisplayArea:SetTall(ttt2pms.cl.plyModelRowHeight)
+    self.pnlColorDisplayArea:SetWide(height / 2)
+    self.pnlColorDisplayArea:SetTall(height)
 
     self.pnlName:SetText(self.mdlName)
     self.pnlPath:SetText(self.mdlPath)
@@ -168,12 +169,10 @@ function DPlyModelRow_TTT2PMS:PerformLayout()
     end
 
     if self.mdlDispColor then
-        --       self.pnlColorDisplayInner:SetParent(self.pnlColorDisplayArea)
         self.pnlColorDisplayInner:Dock(FILL)
         self.pnlColorDisplayInner:SetColor(self.mdlDispColor, true)
         self.pnlColorDisplayInner:SetTooltip(nil)
     else
-        --        self.pnlColorDisplayInner:SetParent(nil)
         self.pnlColorDisplayInner:SetSize(0, 0)
         self.pnlColorDisplayInner:SetPos(-100000, -100000)
     end

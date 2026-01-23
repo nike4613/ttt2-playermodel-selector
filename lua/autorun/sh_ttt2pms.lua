@@ -35,10 +35,12 @@ include_sv("ttt2pms/sv_database.lua")
 include_sh("ttt2pms/sh_plysettings.lua")
 
 include_cl("ttt2pms/cl_vskin.lua")
+include_cl("ttt2pms/cl_util.lua")
 
 local function LoadVgui()
     print("TTT2PMS: Reloading VGUI")
     include_cl("ttt2pms/cl_vgui/dplymodelrow.lua")
+    include_cl("ttt2pms/cl_vgui/dplymodeldropcell.lua")
 end
 LoadVgui()
 hook.Add("OnReloaded", "TTT2PMS_Vgui", LoadVgui)
