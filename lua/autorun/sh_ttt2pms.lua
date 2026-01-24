@@ -40,6 +40,7 @@ include_cl("ttt2pms/cl_util.lua")
 local function LoadVgui()
     print("TTT2PMS: Reloading VGUI")
     include_cl("ttt2pms/cl_vgui/ddragparent.lua")
+    include_cl("ttt2pms/cl_vgui/ddraglist.lua")
     include_cl("ttt2pms/cl_vgui/dplymodelrow.lua")
     include_cl("ttt2pms/cl_vgui/dplymodeldropcell.lua")
 end

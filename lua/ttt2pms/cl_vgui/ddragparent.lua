@@ -143,6 +143,7 @@ function DDragParent_TTT2PMS:BeginDrag(draggable)
     if draggable.trash then
         self.pnlTrash:SetVisible(true)
         self.pnlTrash:SetTall(self.nTrashHeight)
+        self.pnlTrash:Dock(TOP)
         self.pnlTrash:SetPos(0, -self.nTrashHeight)
         self.pnlTrash:SetAnimationEnabled(true)
         self.pnlTrash:MoveTo(0, 0, 0.5, 0, 0.5)
@@ -190,6 +191,7 @@ function DDragParent_TTT2PMS:EndDrag()
         self.pnlTrash:MoveTo(0, -self.nTrashHeight, 0.5, 0, 1, function(_, pnl)
             pnl:SetVisible(false)
             pnl:SetTall(0)
+            self:SetZPos(-32768)
         end)
         if self.dragState.trashHovered then
             -- need to animate the dragged panel too
@@ -212,6 +214,8 @@ function DDragParent_TTT2PMS:EndDrag()
         else
             self.trashAnim = nil
         end
+    else
+        self:SetZPos(-32768)
     end
 
     self.draggable = nil
@@ -228,6 +232,7 @@ function DDragParent_TTT2PMS:CancelDrag()
     self.draggable:cancel()
     self.pnlTrash:SetVisible(false)
     self.pnlTrash:SetTall(0)
+    self:SetZPos(-32768)
     self.draggable = nil
     self.dragState = nil
     self.trashAnim = nil
@@ -305,7 +310,7 @@ function DDragParent_TTT2PMS:Think()
             end
 
             local parent = self:GetParent()
-            if type(parent) == "DScrollPanelTTT2" then
+            if parent:GetName() == "DScrollPanelTTT2" then
                 -- we're in a scroll panel, we can actually do our work
                 parent:GetVBar():AddScroll((thinkTime - self.lastThinkTime) * 30 * dir)
             end
@@ -327,13 +332,21 @@ function DDragParent_TTT2PMS:Think()
     -- check for trash hovered, and set up shrink animation as appropriate
     if self.draggable.trash then
         local bx, by, bw, bh = self.pnlTrash:GetBounds()
+
+        local animStartTime = thinkTime
+        if self.trashAnim then
+            local t = math.min((thinkTime - self.trashAnim.startTime) / 0.5, 1)
+            t = 1 - t
+            animStartTime = thinkTime - (t * 0.5)
+        end
+
         if my > 0 and mx > bx and my > by and mx - bx < bw and my - by < bh then
             if not self.dragState.trashHovered then
                 -- in this case, we will be manually painting the panel so we can scale it wihout
                 -- resizing
                 self.draggable.panel:SetPaintedManually(true)
                 self.trashAnim = {
-                    startTime = thinkTime,
+                    startTime = animStartTime,
                     panel = self.draggable.panel,
                     shrink = true,
                     destroyAfter = false,
@@ -348,7 +361,7 @@ function DDragParent_TTT2PMS:Think()
             if self.dragState.trashHovered then
                 -- do NOT unset PaintedManually immediately so we can animate it
                 self.trashAnim = {
-                    startTime = thinkTime,
+                    startTime = animStartTime,
                     panel = self.draggable.panel,
                     shrink = false,
                     destroyAfter = false,
@@ -397,20 +410,24 @@ function DDragParent_TTT2PMS:PaintOver(w, h)
 
     local x, y = anim.panel:GetPos()
 
-    -- translate FROM panelspace TO screen space
-    mtx:Translate(Vector(pps.translate_x, pps.translate_y))
-    -- translate FROM origin TO panelspace
-    mtx:Translate(Vector(x, y, 0))
-    -- translate FROM mouse offset TO origin
-    mtx:Translate(Vector(anim.offsX, anim.offsY, 0))
-    -- scale about mouse offset
+    local tr = Vector(pps.translate_x + x - anim.offsX, pps.translate_y + y - anim.offsY, 0)
+    tr = tr - (tr * scale)
+
     mtx:Scale(Vector(scale, scale, 1))
-    -- translate FROM origin TO mouse offset
-    mtx:Translate(Vector(-anim.offsX, -anim.offsY, 0))
-    -- translate FROM panelspace TO origin
-    mtx:Translate(Vector(-x, -y, 0))
-    -- translate FROM screen space TO panelspace
-    mtx:Translate(Vector(-pps.translate_x, -pps.translate_y, 0))
+    mtx:SetTranslation(tr)
+
+    PrintTable({ pps, scale, tr })
+
+    -- change the scissor rect to be correct for the projected space
+    render.SetScissorRect(
+        (pps.scissor_left - tr.x) / scale,
+        (pps.scissor_top - tr.y) / scale,
+        (pps.scissor_right - tr.x) / scale,
+        (pps.scissor_bottom - tr.y) / scale,
+        true
+    )
+
+    PrintTable(surface.GetPanelPaintState())
 
     -- actually draw the matrix using the computed matrix
     cam.PushModelMatrix(mtx, true)
@@ -422,6 +439,16 @@ function DDragParent_TTT2PMS:PaintOver(w, h)
     end
 
     anim.panel:PaintManual(false)
+
+    -- fix scissor rect
+    render.SetScissorRect(
+        pps.scissor_left,
+        pps.scissor_top,
+        pps.scissor_right,
+        pps.scissor_bottom,
+        true
+    )
+
     cam.PopModelMatrix()
 
     if not anim.shrink and et == 1 then
@@ -453,7 +480,7 @@ end
 
 derma.DefineControl(
     "DDragParent_TTT2PMS",
-    "a plymodelrow drop cell (the outline)",
+    "a drag-n-drop parent helper",
     DDragParent_TTT2PMS,
     "DPanelTTT2"
 )

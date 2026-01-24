@@ -8,7 +8,7 @@ CLGAMEMODESUBMENU.title = "submenu_customization_selector"
 ---@param parent Panel
 ---@return Panel
 local function FindParentScrollPanel(parent)
-    while parent and type(parent) ~= "DScrollPanelTTT2" do
+    while parent and parent:GetName() ~= "DScrollPanelTTT2" do
         parent = parent:GetParent()
     end
 
@@ -61,12 +61,40 @@ function CLGAMEMODESUBMENU:Populate(parent)
     end
 
     local scrollPanel = FindParentScrollPanel(parent)
-    local dragParent = scrollPanel:Add("Panel")
-    ---@diagnostic disable-next-line
-    function dragParent:PerformLayout()
-        self:SetPos(0, 0)
-        self:SetWide(scrollPanel:GetWide())
-        self:SetTall(scrollPanel:GetTall())
+    -- we need to remove and restore the OnChildAdded when we add this so we actually end up
+    -- parented to it like we want
+    local scollPanelOnChildAdded = scrollPanel.OnChildAdded
+    --- @diagnostic disable-next-line
+    scrollPanel.OnChildAdded = function() end
+    local dragParent = vgui.Create("DDragParent_TTT2PMS", scrollPanel)
+    --- @diagnostic disable-next-line
+    scrollPanel.OnChildAdded = scrollPanelOnChildAdded
+    dragParent:SetDebugShow(true)
+
+    local dropCell = vgui.Create("DPlyModelDropCell_TTT2PMS", parent)
+    form:AddItem(dropCell)
+    local dragRow = vgui.Create("DPlyModelRow_TTT2PMS", parent)
+    dragRow:SetParent(dropCell)
+    dragRow:Dock(FILL)
+    dragRow:SetModel(LocalPlayer():GetModel())
+
+    --- @diagnostic disable-next-line
+    function dragRow:OnMousePressed(keyCode)
+        print("dragRow MousePressed", keyCode)
+        if keyCode == MOUSE_LEFT then
+            --- @type DDragParent_Draggable
+            local d = {
+                btn = keyCode,
+                panel = dragRow,
+                trash = function() end,
+                finish = function(self, pos)
+                    self.panel:SetParent(dropCell)
+                    self.panel:Dock(FILL)
+                end,
+            }
+            d.cancel = d.finish
+
+            dragParent:BeginDrag(d)
+        end
     end
-    dragParent:InvalidateLayout()
 end

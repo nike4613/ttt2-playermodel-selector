@@ -18,6 +18,15 @@ local function PaintPlyModelDropCell(skin, pnl, w, h)
     drawRoundedBox(2, 2, 2, w - 4, h - 4, vskinGetBackgroundColor())
 end
 
+local function PaintDragParentTrashZone(skin, pnl, w, h)
+    drawRoundedBox(0, 0, 0, w, h, Color(255, 255, 255, 63))
+    -- TODO: draw trash icon
+end
+
+local function PaintDragList(skin, pnl, w, h)
+    --
+end
+
 local function UpdateDefaultSkin()
     print("TTT2PMS: Updating TTT default skin...")
 
@@ -29,6 +38,8 @@ local function UpdateDefaultSkin()
 
     SetFunc("PaintPlyModelRow_TTT2PMS", PaintPlyModelRow)
     SetFunc("PaintPlyModelDropCell_TTT2PMS", PaintPlyModelDropCell)
+    SetFunc("PaintDragParentTrashZone_TTT2PMS", PaintDragParentTrashZone)
+    SetFunc("PaintDragList_TTT2PMS", PaintDragList)
 
     utilGetChangedColor = util.GetChangedColor
     vskinGetBackgroundColor = vskin.GetBackgroundColor
