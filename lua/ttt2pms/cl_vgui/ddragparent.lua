@@ -4,10 +4,25 @@
 ---@field GetDebugShow fun(self):boolean
 ---@field SetDebugShow fun(self, v: boolean)
 ---
+---@field private nTrashHeight number
+---@field GetTrashHeight fun(self):number
+---@field SetTrashHeight fun(self, v:number)
+---
+---@field private nScrollUpZone number?
+---@field GetScrollUpZone fun(self):number?
+---@field SetScrollUpZone fun(self, v?:number)
+---
+---@field private nScrollDownZone number?
+---@field GetScrollDownZone fun(self):number?
+---@field SetScrollDownZone fun(self, v?:number)
+---
 ---@field private draggable? DDragParent_Draggable
 local DDragParent_TTT2PMS = {}
 
 AccessorFunc(DDragParent_TTT2PMS, "bDebugShow", "DebugShow", FORCE_BOOL)
+AccessorFunc(DDragParent_TTT2PMS, "nTrashHeight", "TrashHeight", FORCE_NUMBER)
+AccessorFunc(DDragParent_TTT2PMS, "nScrollUpZone", "ScrollUpZone", FORCE_NUMBER)
+AccessorFunc(DDragParent_TTT2PMS, "nScrollDownZone", "ScrollDownZone", FORCE_NUMBER)
 
 function DDragParent_TTT2PMS:Init()
     self:SetDebugShow(false)
@@ -16,6 +31,10 @@ function DDragParent_TTT2PMS:Init()
     self:SetMouseInputEnabled(true)
     self:SetKeyboardInputEnabled(true)
     self:SetZPos(-32768)
+
+    self:SetTrashHeight(ttt2pms.cl.plyModelRowHeight)
+    self:SetScrollUpZone(nil)
+    self:SetScrollDownZone(nil)
 
     self.dragState = nil
     self.trashAnim = nil
@@ -69,6 +88,10 @@ function DDragParent_TTT2PMS:CanBeginDrag()
     return self.draggable == nil
 end
 
+local function GetZoneOrDefault(self, zone)
+    return zone or (0.25 * self:GetTall())
+end
+
 ---
 ---@param draggable DDragParent_Draggable
 function DDragParent_TTT2PMS:BeginDrag(draggable)
@@ -106,6 +129,7 @@ function DDragParent_TTT2PMS:BeginDrag(draggable)
     -- store the offset from the panel pos to the mouse pos so we can keep the panel correct
     self.dragState = {
         dragging = true,
+        blockScroll = true,
         mouseX = mx,
         mouseY = my,
         offsX = x - mx,
@@ -118,8 +142,8 @@ function DDragParent_TTT2PMS:BeginDrag(draggable)
     -- show the trash if necessary
     if draggable.trash then
         self.pnlTrash:SetVisible(true)
-        self.pnlTrash:SetTall(ttt2pms.cl.plyModelRowHeight)
-        self.pnlTrash:SetPos(0, -ttt2pms.cl.plyModelRowHeight)
+        self.pnlTrash:SetTall(self.nTrashHeight)
+        self.pnlTrash:SetPos(0, -self.nTrashHeight)
         self.pnlTrash:SetAnimationEnabled(true)
         self.pnlTrash:MoveTo(0, 0, 0.5, 0, 0.5)
     end
@@ -161,11 +185,9 @@ function DDragParent_TTT2PMS:EndDrag()
         end
     end
 
-    -- clean up UI elements
-    self:SetZPos(-32768)
     -- hide the trash panel
     if self.draggable.trash then
-        self.pnlTrash:MoveTo(0, -ttt2pms.cl.plyModelRowHeight, 0.5, 0, 1, function(_, pnl)
+        self.pnlTrash:MoveTo(0, -self.nTrashHeight, 0.5, 0, 1, function(_, pnl)
             pnl:SetVisible(false)
             pnl:SetTall(0)
         end)
@@ -175,7 +197,7 @@ function DDragParent_TTT2PMS:EndDrag()
             self.draggable.panel:MoveTo(
                 x,
                 y - self:GetTall(),
-                0.5 * (self:GetTall() / ttt2pms.cl.plyModelRowHeight), -- this dance makes sure that this anim moves at the same rate as the above trash anim
+                0.5 * (self:GetTall() / self.nTrashHeight), -- this dance makes sure that this anim moves at the same rate as the above trash anim
                 0,
                 1,
                 function(_, pnl)
@@ -233,6 +255,8 @@ function DDragParent_TTT2PMS:Think()
         return
     end
 
+    local thinkTime = UnPredictedCurTime()
+
     -- if we're currently dragging, we need to update the dragged panel positioning
     --
     local sx, sy = input.GetCursorPos()
@@ -269,6 +293,37 @@ function DDragParent_TTT2PMS:Think()
         self.dragState.mouseY = my
     end
 
+    -- check if the mouse is in a position where we want to do a scroll
+    if mx >= 0 and mx <= self:GetWide() and my >= 0 and my <= self:GetTall() then
+        local upper = GetZoneOrDefault(self, self:GetScrollUpZone())
+        local lower = GetZoneOrDefault(self, self:GetScrollDownZone())
+
+        local function DoScroll(dir)
+            -- if this is set, then the drag started in a scroll region and hasn't left it yet
+            if self.dragState.blockScroll then
+                return
+            end
+
+            local parent = self:GetParent()
+            if type(parent) == "DScrollPanelTTT2" then
+                -- we're in a scroll panel, we can actually do our work
+                parent:GetVBar():AddScroll((thinkTime - self.lastThinkTime) * 30 * dir)
+            end
+        end
+
+        if my <= upper then
+            -- need to scroll up in the containing scroll panel
+            DoScroll(-1)
+        elseif my >= self:GetTall() - lower then
+            -- need to scroll up in the containing scroll panel
+            DoScroll(1)
+        else
+            -- cursor is in bounds of the drag region, but not in a scroll region. Unblock
+            -- scrolling.
+            self.dragState.blockScroll = false
+        end
+    end
+
     -- check for trash hovered, and set up shrink animation as appropriate
     if self.draggable.trash then
         local bx, by, bw, bh = self.pnlTrash:GetBounds()
@@ -278,7 +333,7 @@ function DDragParent_TTT2PMS:Think()
                 -- resizing
                 self.draggable.panel:SetPaintedManually(true)
                 self.trashAnim = {
-                    startTime = UnPredictedCurTime(),
+                    startTime = thinkTime,
                     panel = self.draggable.panel,
                     shrink = true,
                     destroyAfter = false,
@@ -291,10 +346,9 @@ function DDragParent_TTT2PMS:Think()
         else
             -- mouse is NOT over the visible portion of the trash panel
             if self.dragState.trashHovered then
-                self.dragState.trashHoverTime = UnPredictedCurTime()
                 -- do NOT unset PaintedManually immediately so we can animate it
                 self.trashAnim = {
-                    startTime = UnPredictedCurTime(),
+                    startTime = thinkTime,
                     panel = self.draggable.panel,
                     shrink = false,
                     destroyAfter = false,
@@ -305,6 +359,8 @@ function DDragParent_TTT2PMS:Think()
             self.dragState.trashHovered = false
         end
     end
+
+    self.lastThinkTime = thinkTime
 end
 
 function DDragParent_TTT2PMS:PaintOver(w, h)
@@ -358,6 +414,13 @@ function DDragParent_TTT2PMS:PaintOver(w, h)
 
     -- actually draw the matrix using the computed matrix
     cam.PushModelMatrix(mtx, true)
+
+    if self:GetDebugShow() then
+        local prev = DisableClipping(true)
+        draw.RoundedBox(0, 0, 0, self:GetWide(), self:GetTall(), Color(255, 255, 255, 63))
+        DisableClipping(prev)
+    end
+
     anim.panel:PaintManual(false)
     cam.PopModelMatrix()
 
