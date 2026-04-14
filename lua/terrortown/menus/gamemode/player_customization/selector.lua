@@ -69,7 +69,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
     local dragParent = vgui.Create("DDragParent_TTT2PMS", scrollPanel)
     --- @diagnostic disable-next-line
     scrollPanel.OnChildAdded = scrollPanelOnChildAdded
-    dragParent:SetDebugShow(true)
+    --    dragParent:SetDebugShow(true)
 
     local dropCell = vgui.Create("DPlyModelDropCell_TTT2PMS", parent)
     form:AddItem(dropCell)

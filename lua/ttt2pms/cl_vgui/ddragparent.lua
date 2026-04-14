@@ -17,12 +17,21 @@
 ---@field SetScrollDownZone fun(self, v?:number)
 ---
 ---@field private draggable? DDragParent_Draggable
+---@field private originX number
+---@field private originY number
 local DDragParent_TTT2PMS = {}
 
 AccessorFunc(DDragParent_TTT2PMS, "bDebugShow", "DebugShow", FORCE_BOOL)
 AccessorFunc(DDragParent_TTT2PMS, "nTrashHeight", "TrashHeight", FORCE_NUMBER)
 AccessorFunc(DDragParent_TTT2PMS, "nScrollUpZone", "ScrollUpZone", FORCE_NUMBER)
 AccessorFunc(DDragParent_TTT2PMS, "nScrollDownZone", "ScrollDownZone", FORCE_NUMBER)
+
+---The number of seconds it takes to show or hide the trash area.
+local C_TrashShowTime = 0.5
+---The number of seconds it takes to grow or shrink the dragged panel when hovering the trash area.
+local C_GrowShrinkTime = 0.25
+---The factor by which elements shrink when held over the trash area.
+local C_ShrinkFactor = 0.6
 
 function DDragParent_TTT2PMS:Init()
     self:SetDebugShow(false)
@@ -38,6 +47,8 @@ function DDragParent_TTT2PMS:Init()
 
     self.dragState = nil
     self.trashAnim = nil
+    self.originX = 0
+    self.originY = 0
 
     -- we want an element for the trash zone too. it'll be hidden if we don't have a trash callback
     -- though it won't actually be visible unless TrashCallback is set
@@ -96,13 +107,6 @@ local function GetZoneOrDefault(self, zone)
     return zone or (0.25 * self:GetTall())
 end
 
----The number of seconds it takes to show or hide the trash area.
-local C_TrashShowTime = 0.5
----The number of seconds it takes to grow or shrink the dragged panel when hovering the trash area.
-local C_GrowShrinkTime = 0.25
----The factor by which elements shrink when held over the trash area.
-local C_ShrinkFactor = 0.6
-
 ---
 ---@param draggable DDragParent_Draggable
 function DDragParent_TTT2PMS:BeginDrag(draggable)
@@ -155,9 +159,9 @@ function DDragParent_TTT2PMS:BeginDrag(draggable)
         self.pnlTrash:SetVisible(true)
         self.pnlTrash:SetTall(self.nTrashHeight)
         self.pnlTrash:SetWide(self:GetWide())
-        self.pnlTrash:SetPos(0, -self.nTrashHeight)
+        self.pnlTrash:SetPos(0, self.originY - self.nTrashHeight)
         self.pnlTrash:SetAnimationEnabled(true)
-        self.pnlTrash:MoveTo(0, 0, C_TrashShowTime, 0, 0.5)
+        self.pnlTrash:MoveTo(0, self.originY, C_TrashShowTime, 0, 0.5)
     end
 end
 
@@ -284,7 +288,7 @@ function DDragParent_TTT2PMS:EndDrag()
             pnl:SetTall(0)
             self:SetZPos(-32768)
         end)
-        tranim.Pos = Vector(0, -self.nTrashHeight)
+        tranim.Pos = Vector(0, self.originY - self.nTrashHeight)
         tranim.Think = MoveThinkRelTarget
 
         if self.dragState.trashHovered then
@@ -306,7 +310,7 @@ function DDragParent_TTT2PMS:EndDrag()
 
             -- if the dragged panel is actually taller than the trash panel, (visually) then we'll
             -- push it way above the trash panel so that it is off-screen when needed
-            if visy < 0 then
+            if visy < ttt2pms.cl.plyModelRowVPadding then
                 visy = -(vish - H + ttt2pms.cl.plyModelRowVPadding)
             end
 
@@ -544,6 +548,7 @@ function DDragParent_TTT2PMS:PaintOver(w, h)
         pps.scissor_right,
         pps.scissor_bottom,
         true
+        --false
     )
 
     if self:GetDebugShow() then
@@ -583,11 +588,18 @@ end
 
 function DDragParent_TTT2PMS:PerformLayout()
     -- this panel's parent is the scroll view which contains the draggable area
-    local area = self:GetParent()
+    local w, h = self:GetParent():GetSize()
+    local w2 = w / C_ShrinkFactor
+    local h2 = h / C_ShrinkFactor
 
-    self:SetPos(0, 0)
-    self:SetWide(area:GetWide())
-    self:SetTall(area:GetTall())
+    local x = (w - w2) / 2
+    local y = (h - h2) / 2
+
+    self:SetPos(x, y)
+    self:SetSize(w2, h2)
+
+    self.originX = -x
+    self.originY = -y
 end
 
 function DDragParent_TTT2PMS:Paint(w, h)

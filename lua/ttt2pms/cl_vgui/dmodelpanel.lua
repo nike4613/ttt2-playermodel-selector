@@ -11,9 +11,9 @@
 ---@field private DirectionalLight table<Color>
 ---@field private LayoutEntity fun(self:DModelPanel_TTT2PMS, ent:Entity)
 local DModelPanel_TTT2PMS = {}
-local DModelPanel = vgui.GetControlTable("DModelPanel")
 
 function DModelPanel_TTT2PMS:Init()
+    local DModelPanel = vgui.GetControlTable("DModelPanel")
     DModelPanel.Init(self)
 end
 
@@ -85,13 +85,19 @@ function DModelPanel_TTT2PMS:Paint( w, h )
 
     local enabled, leftx, topy, rightx, bottomy = surface.GetScissorRect()
     render.ClearDepth( false )
-    local a1 = Vector(leftx, topy)
-    local a2 = Vector(rightx, bottomy)
+    local a1 = matrix * Vector(leftx, topy)
+    local a2 = matrix * Vector(rightx, bottomy)
+
+    --PrintTable{{enabled, leftx, topy, rightx, bottomy}}
+    --PrintTable{{a1, a2}}
 
     -- TODO: somehow, for some reason, this doesn't actually enable the scissor rect? why???
     render.SetScissorRect(a1.x, a1.y, a2.x, a2.y, true)
 
+    --PrintTable{surface.GetPanelPaintState()}
+
 	cam.Start3D( self.vCamPos, ang, self.fFOV, x1.x, x1.y, x2.x, x2.y, 5, self.FarZ )
+    render.SetScissorRect(a1.x, a1.y, a2.x, a2.y, true)
 
 	render.SuppressEngineLighting( true )
 	render.SetLightingOrigin( self.Entity:GetPos() )
