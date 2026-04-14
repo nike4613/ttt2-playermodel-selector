@@ -42,7 +42,7 @@ function DPlyModelRow_TTT2PMS:Init()
 
     ---@class DModelPanel
     ---@field Entity Entity
-    local pnlModel = self:Add("DModelPanel")
+    local pnlModel = self:Add("DModelPanel_TTT2PMS")
     self.pnlModel = pnlModel
     pnlModel:Dock(LEFT)
     pnlModel:SetZPos(0)
@@ -202,7 +202,7 @@ function DPlyModelRow_TTT2PMS:PerformLayout()
         end
 
         local bgrp = self.mdlBodygroups[i]
-        bodygroupStr = bodygroupStr .. "/" .. GetBodygroupStr(bgrp)
+        bodygroupStr = bodygroupStr .. "/" .. GetBodygroupStr(bgrp or 0)
     end
 
     self.pnlBodygroups:SetText(bodygroupStr)

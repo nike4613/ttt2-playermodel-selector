@@ -55,5 +55,5 @@ ttt2pms = ttt2pms or {}
 ttt2pms.cl = ttt2pms.cl or {}
 
 -- Clientside constants
-ttt2pms.cl.plyModelRowHeight = 64
-ttt2pms.cl.plyModelRowVPadding = 4
+ttt2pms.cl.plyModelRowHeight = 96
+ttt2pms.cl.plyModelRowVPadding = 8

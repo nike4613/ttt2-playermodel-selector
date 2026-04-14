@@ -78,10 +78,14 @@ end
 ---                                                 not appear if not specified. The panel must be
 ---                                                 left INTACT by this method; it will still be
 ---                                                 used for some animation.
----@field finish fun(self,pos:DDragParent_Position) Called when the dragged panel is
+---@field finish fun(self,pos:DDragParent_Position,doneAnimating:fun()):boolean? Called when the dragged panel is
 ---                                                 dropped. If this does not reparent pnl, pnl
 ---                                                 will be removed. The Dock state of the panel
 ---                                                 is reset at start, so must be re-Docked if needed.
+---                                                 If this returns TRUE, the reparent of pnl is
+---                                                 suppressed, and the DDragParent remains above
+---                                                 everything else until doneAnimating is called,
+---                                                 at which point the reparent/remove check is repeated.
 ---@field cancel fun(self) Called if the drag is cancelled for some reason
 
 function DDragParent_TTT2PMS:CanBeginDrag()
@@ -255,12 +259,20 @@ function DDragParent_TTT2PMS:EndDrag()
             mouseX = self.dragState.mouseX,
             mouseY = self.dragState.mouseY,
         }
-        self.draggable:finish(pos)
 
+        local panel = self.draggable.panel
+
+        local function AnimateDone()
         -- if the finish function didn't reparent, hide and destroy the panel ourselves
-        if self.draggable.panel and self.draggable.panel:GetParent() == self then
-            self.draggable.panel:SetVisible(false)
-            self.draggable.panel:Remove()
+            if panel and panel:GetParent() == self then
+                panel:SetVisible(false)
+                panel:Remove()
+            end
+        end
+
+        local waitForAnimate = self.draggable:finish(pos, AnimateDone)
+        if not waitForAnimate then
+            AnimateDone()
         end
     end
 
