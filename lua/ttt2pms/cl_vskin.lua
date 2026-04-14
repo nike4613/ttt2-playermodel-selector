@@ -9,13 +9,13 @@ local function GetBoxColor()
 end
 
 local function PaintPlyModelRow(skin, pnl, w, h)
-    drawRoundedBox(4, 0, 0, w, h, GetBoxColor())
+    drawRoundedBox(8, 0, 0, w, h, GetBoxColor())
 end
 
 local function PaintPlyModelDropCell(skin, pnl, w, h)
     local colorBox = GetBoxColor()
-    drawRoundedBox(4, 0, 0, w, h, colorBox)
-    drawRoundedBox(2, 2, 2, w - 4, h - 4, vskinGetBackgroundColor())
+    drawRoundedBox(8, 0, 0, w, h, colorBox)
+    drawRoundedBox(4, 4, 4, w - 8, h - 8, vskinGetBackgroundColor())
 end
 
 local function PaintDragParentTrashZone(skin, pnl, w, h)

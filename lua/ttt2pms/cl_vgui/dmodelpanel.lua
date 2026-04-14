@@ -1,4 +1,3 @@
-
 ---@class DModelPanel_TTT2PMS : DModelPanel
 ---@field private Entity Entity
 ---@field private aLookAngle Angle
@@ -18,7 +17,6 @@ function DModelPanel_TTT2PMS:Init()
 end
 
 function DModelPanel_TTT2PMS:DrawModel()
-
     --[[
 	-- Get the panel's scissor rect, and apply it to model render
 	if ( surface.GetScissorRect ) then
@@ -33,14 +31,14 @@ function DModelPanel_TTT2PMS:DrawModel()
 	end
     --]]
 
-	local ret = self:PreDrawModel( self.Entity )
-	if ( ret != false ) then
-		self.Entity:DrawModel()
-		self:PostDrawModel( self.Entity )
-	end
+    local ret = self:PreDrawModel(self.Entity)
+    if ret ~= false then
+        self.Entity:DrawModel()
 
-	render.SetScissorRect( 0, 0, 0, 0, false )
+        self:PostDrawModel(self.Entity)
+    end
 
+    --render.SetScissorRect(0, 0, 0, 0, false)
 end
 
 ---
@@ -48,31 +46,31 @@ end
 ---In the 3D rendering context.
 ---@param ent Entity the entity about to be drawn
 ---@return boolean `false` to suppress rendering of the entity; any other value to allow it
-function DModelPanel_TTT2PMS:PreDrawModel( ent )
-	return true
+function DModelPanel_TTT2PMS:PreDrawModel(ent)
+    return true
 end
 
 ---
 ---Called after an entity has been drawn, while in the 3D rendering context
 ---@param ent Entity the entity that was just drawn
-function DModelPanel_TTT2PMS:PostDrawModel( ent )
-
-end
+function DModelPanel_TTT2PMS:PostDrawModel(ent) end
 
 ---
 ---@param w number
 ---@param h number
-function DModelPanel_TTT2PMS:Paint( w, h )
-	if ( !IsValid( self.Entity ) ) then return end
+function DModelPanel_TTT2PMS:Paint(w, h)
+    if not IsValid(self.Entity) then
+        return
+    end
 
-	local x, y = self:LocalToScreen( 0, 0 )
+    local x, y = self:LocalToScreen(0, 0)
 
-	self:LayoutEntity( self.Entity )
+    self:LayoutEntity(self.Entity)
 
-	local ang = self.aLookAngle
-	if ( !ang ) then
-		ang = ( self.vLookatPos - self.vCamPos ):Angle()
-	end
+    local ang = self.aLookAngle
+    if not ang then
+        ang = (self.vLookatPos - self.vCamPos):Angle()
+    end
 
     -- copy the current render transform from the 2D context into the 3D context
     local matrix = cam.GetModelMatrix()
@@ -84,44 +82,84 @@ function DModelPanel_TTT2PMS:Paint( w, h )
     x2 = x2 - x1
 
     local enabled, leftx, topy, rightx, bottomy = surface.GetScissorRect()
-    render.ClearDepth( false )
+    render.ClearDepth(true)
     local a1 = matrix * Vector(leftx, topy)
     local a2 = matrix * Vector(rightx, bottomy)
 
-    --PrintTable{{enabled, leftx, topy, rightx, bottomy}}
-    --PrintTable{{a1, a2}}
-
-    -- TODO: somehow, for some reason, this doesn't actually enable the scissor rect? why???
     render.SetScissorRect(a1.x, a1.y, a2.x, a2.y, true)
 
-    --PrintTable{surface.GetPanelPaintState()}
+    cam.Start3D(self.vCamPos, ang, self.fFOV, x1.x, x1.y, x2.x, x2.y, 5, self.FarZ)
+    --render.SetScissorRect(a1.x, a1.y, a2.x, a2.y, true)
 
-	cam.Start3D( self.vCamPos, ang, self.fFOV, x1.x, x1.y, x2.x, x2.y, 5, self.FarZ )
-    render.SetScissorRect(a1.x, a1.y, a2.x, a2.y, true)
+    render.SuppressEngineLighting(true)
+    render.SetLightingOrigin(self.Entity:GetPos())
+    render.ResetModelLighting(
+        self.colAmbientLight.r / 255,
+        self.colAmbientLight.g / 255,
+        self.colAmbientLight.b / 255
+    )
+    render.SetColorModulation(self.colColor.r / 255, self.colColor.g / 255, self.colColor.b / 255)
+    --render.SetBlend((self:GetAlpha() / 255) * (self.colColor.a / 255)) -- * surface.GetAlphaMultiplier()
 
-	render.SuppressEngineLighting( true )
-	render.SetLightingOrigin( self.Entity:GetPos() )
-	render.ResetModelLighting( self.colAmbientLight.r / 255, self.colAmbientLight.g / 255, self.colAmbientLight.b / 255 )
-	render.SetColorModulation( self.colColor.r / 255, self.colColor.g / 255, self.colColor.b / 255 )
-	render.SetBlend( ( self:GetAlpha() / 255 ) * ( self.colColor.a / 255 ) ) -- * surface.GetAlphaMultiplier()
+    for i = 0, 6 do
+        local col = self.DirectionalLight[i]
+        if col then
+            render.SetModelLighting(i, col.r / 255, col.g / 255, col.b / 255)
+        end
+    end
 
-	for i = 0, 6 do
-		local col = self.DirectionalLight[ i ]
-		if ( col ) then
-			render.SetModelLighting( i, col.r / 255, col.g / 255, col.b / 255 )
-		end
-	end
+    render.SetStencilEnable(true)
+    render.SetStencilTestMask(255)
+    render.SetStencilWriteMask(255)
+    render.SetStencilReferenceValue(255)
+    render.SetStencilCompareFunction(STENCILCOMPARISONFUNCTION_ALWAYS)
+    render.SetStencilPassOperation(STENCIL_REPLACE)
+    render.SetStencilFailOperation(STENCIL_KEEP)
+    render.SetStencilZFailOperation(STENCIL_KEEP)
 
-	self:DrawModel()
+    -- draw with stencil enabled and alpha written. we'll use the stencil in a mo to reset alpha properly
+    self:DrawModel()
 
-	render.SuppressEngineLighting( false )
+    render.SetStencilEnable(false)
 
-	cam.End3D()
+    render.SuppressEngineLighting(false)
 
-	self.LastPaint = RealTime()
+    cam.End3D()
 
+    -- now we use the stencil to reset the alpha of the drawn model
+    render.SetStencilEnable(true)
+    render.SetStencilTestMask(255)
+    render.SetStencilWriteMask(255)
+    render.SetStencilReferenceValue(255)
+    render.SetStencilCompareFunction(STENCILCOMPARISONFUNCTION_EQUAL)
+    render.SetStencilPassOperation(STENCIL_KEEP)
+    render.SetStencilFailOperation(STENCIL_KEEP)
+    render.SetStencilZFailOperation(STENCIL_KEEP)
+
+    render.OverrideBlend(
+        true,
+        BLEND_ZERO,
+        BLEND_ONE,
+        BLENDFUNC_ADD,
+        BLEND_ONE,
+        BLEND_ZERO,
+        BLENDFUNC_ADD
+    )
+
+    cam.PushModelMatrix(Matrix(), false)
+
+    draw.NoTexture()
+    surface.SetDrawColor(255, 255, 255, 255)
+    surface.DrawRect(-x, -y, ScrW(), ScrH())
+
+    cam.PopModelMatrix()
+
+    render.OverrideBlend(false)
+
+    render.SetStencilEnable(false)
+
+    self.LastPaint = RealTime()
 end
-
 
 derma.DefineControl(
     "DModelPanel_TTT2PMS",

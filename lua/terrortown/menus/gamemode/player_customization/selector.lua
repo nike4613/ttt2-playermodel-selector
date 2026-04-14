@@ -63,7 +63,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
     local scrollPanel = FindParentScrollPanel(parent)
     -- we need to remove and restore the OnChildAdded when we add this so we actually end up
     -- parented to it like we want
-    local scollPanelOnChildAdded = scrollPanel.OnChildAdded
+    local scrollPanelOnChildAdded = scrollPanel.OnChildAdded
     --- @diagnostic disable-next-line
     scrollPanel.OnChildAdded = function() end
     local dragParent = vgui.Create("DDragParent_TTT2PMS", scrollPanel)

@@ -170,7 +170,7 @@ end
 ---@param panel Panel
 ---@param t number
 local function MoveThinkBasic(anim, panel, t)
-    if !anim.StartPos then
+    if not anim.StartPos then
         anim.StartPos = Vector(panel:GetX(), panel:GetY(), 0)
     end
     local pos = LerpVector(t, anim.StartPos, anim.Pos)
@@ -188,7 +188,7 @@ end
 ---@param panel Panel
 ---@param t number
 local function MoveThinkRelTarget(anim, panel, t)
-    if !anim.StartPos then
+    if not anim.StartPos then
         anim.StartPos = Vector(panel:GetX(), panel:GetY(), 0)
     end
     local pos = LerpVector(t, anim.StartPos, anim.Pos)
@@ -267,7 +267,7 @@ function DDragParent_TTT2PMS:EndDrag()
         local panel = self.draggable.panel
 
         local function AnimateDone()
-        -- if the finish function didn't reparent, hide and destroy the panel ourselves
+            -- if the finish function didn't reparent, hide and destroy the panel ourselves
             if panel and panel:GetParent() == self then
                 panel:SetVisible(false)
                 panel:Remove()
@@ -321,14 +321,19 @@ function DDragParent_TTT2PMS:EndDrag()
 
             tranim.RelOffs = Vector(tx, ty)
 
-            local pnlAnim = self.draggable.panel:NewAnimation(3*C_TrashShowTime/4, 0, -1, function(_, pnl)
+            local pnlAnim = self.draggable.panel:NewAnimation(
+                3 * C_TrashShowTime / 4,
+                0,
+                -1,
+                function(_, pnl)
                     -- destroy the animation state if its still present
                     if self.trashAnim and self.trashAnim.panel == pnl then
                         self.trashAnim = nil
                     end
                     -- and destroy the panel itself
                     pnl:Remove()
-            end)
+                end
+            )
             pnlAnim.Think = MoveThinkBasic
             pnlAnim.StartPos = Vector(x, y)
             pnlAnim.Pos = Vector(x, y) -- default target vector to current pos; it'll be fixed by the first think on tranim
@@ -423,37 +428,6 @@ function DDragParent_TTT2PMS:Think()
         self.dragState.mouseY = my
     end
 
-    -- check if the mouse is in a position where we want to do a scroll
-    if mx >= 0 and mx <= self:GetWide() and my >= 0 and my <= self:GetTall() then
-        local upper = GetZoneOrDefault(self, self:GetScrollUpZone())
-        local lower = GetZoneOrDefault(self, self:GetScrollDownZone())
-
-        local function DoScroll(dir)
-            -- if this is set, then the drag started in a scroll region and hasn't left it yet
-            if self.dragState.blockScroll then
-                return
-            end
-
-            local parent = self:GetParent()
-            if parent:GetName() == "DScrollPanelTTT2" then
-                -- we're in a scroll panel, we can actually do our work
-                parent:GetVBar():AddScroll((thinkTime - self.lastThinkTime) * 30 * dir)
-            end
-        end
-
-        if my <= upper then
-            -- need to scroll up in the containing scroll panel
-            DoScroll(-1)
-        elseif my >= self:GetTall() - lower then
-            -- need to scroll up in the containing scroll panel
-            DoScroll(1)
-        else
-            -- cursor is in bounds of the drag region, but not in a scroll region. Unblock
-            -- scrolling.
-            self.dragState.blockScroll = false
-        end
-    end
-
     -- check for trash hovered, and set up shrink animation as appropriate
     if self.draggable.trash then
         local bx, by, bw, bh = self.pnlTrash:GetBounds()
@@ -498,7 +472,103 @@ function DDragParent_TTT2PMS:Think()
         end
     end
 
+    -- check if the mouse is in a position where we want to do a scroll
+    if
+        not self.dragState.trashHovered
+        and mx >= 0
+        and mx <= self:GetWide()
+        and my >= 0
+        and my <= self:GetTall()
+    then
+        local upper = GetZoneOrDefault(self, self:GetScrollUpZone())
+        local lower = GetZoneOrDefault(self, self:GetScrollDownZone())
+
+        local function DoScroll(dir)
+            -- if this is set, then the drag started in a scroll region and hasn't left it yet
+            if self.dragState.blockScroll then
+                return
+            end
+
+            local parent = self:GetParent()
+            if parent:GetName() == "DScrollPanelTTT2" then
+                -- we're in a scroll panel, we can actually do our work
+                parent:GetVBar():AddScroll((thinkTime - self.lastThinkTime) * 30 * dir)
+            end
+        end
+
+        if my <= upper then
+            -- need to scroll up in the containing scroll panel
+            DoScroll(-1)
+        elseif my >= self:GetTall() - lower then
+            -- need to scroll up in the containing scroll panel
+            DoScroll(1)
+        else
+            -- cursor is in bounds of the drag region, but not in a scroll region. Unblock
+            -- scrolling.
+            self.dragState.blockScroll = false
+        end
+    end
+
     self.lastThinkTime = thinkTime
+end
+
+ttt2pms = ttt2pms or {}
+ttt2pms.cl = ttt2pms.cl or {}
+ttt2pms.cl.pow2RenderTargets = {}
+local pow2RenderTargets = ttt2pms.cl.pow2RenderTargets
+
+---
+---@param n number
+---@return number
+local function NextPow2(n)
+    n = math.ceil(n) -- float -> integer (round up)
+    if n <= 0 then
+        return 1
+    end
+
+    n = n - 1
+    n = bit.bor(n, bit.rshift(n, 1))
+    n = bit.bor(n, bit.rshift(n, 2))
+    n = bit.bor(n, bit.rshift(n, 4))
+    n = bit.bor(n, bit.rshift(n, 8))
+    n = bit.bor(n, bit.rshift(n, 16))
+    return n + 1
+end
+
+---Gets a render target for a given size (rounding up, ofc)
+---@param w number
+---@param h number
+---@return ITexture renderTarget a rendertarget capable of holding a frame that's wxh
+---@return IMaterial material an IMaterial referencing the RT
+local function GetFrameRenderTarget(w, h)
+    w = NextPow2(w)
+    h = NextPow2(h)
+
+    local hdict = pow2RenderTargets[w] or {}
+    pow2RenderTargets[w] = hdict
+
+    local d = hdict[h] or {}
+    hdict[h] = d
+
+    if not d.rt then
+        d.rt = GetRenderTargetEx(
+            "TTT2PMS_DDragParent_PanelRT_" .. w .. "x" .. h,
+            w,
+            h,
+            RT_SIZE_DEFAULT,
+            MATERIAL_RT_DEPTH_SEPARATE,
+            40976,
+            CREATERENDERTARGETFLAGS_AUTOMIPMAP,
+            IMAGE_FORMAT_RGBA8888
+        )
+        d.mat = CreateMaterial(d.rt:GetName() .. "_Mat", "UnlitGeneric", {
+            ["$basetexture"] = d.rt:GetName(),
+            ["$ignorez"] = 1,
+            ["$translucent"] = 1,
+            ["$smooth"] = 0,
+        })
+    end
+    return d.rt, d.mat
 end
 
 function DDragParent_TTT2PMS:PaintOver(w, h)
@@ -526,10 +596,32 @@ function DDragParent_TTT2PMS:PaintOver(w, h)
     local et = math.ease.InOutSine(t)
     local scale = Lerp(et, scaleStart, scaleEnd)
 
-    -- trash is hovered, and we need to manually render the element
     local pps = surface.GetPanelPaintState()
 
+    -- trash is hovered, and we need to manually render the element
+    -- we'll render it to an RT of appropriate size, then draw that RT back to the screen.
+    -- Trying to render directly is plagued by issues with some elements not properly respecting the
+    -- view transform, and the engine being really weird about clipping and scissoring.
+
     local x, y = anim.panel:GetPos()
+    local pw, ph = anim.panel:GetSize()
+    local rt, mat = GetFrameRenderTarget(pw, ph)
+
+    render.PushRenderTarget(rt, 0, 0, pw, ph)
+    render.Clear(0, 0, 0, 0, true, true)
+    cam.Start2D()
+
+    local tmat = Matrix()
+    tmat:SetTranslation(Vector(-pps.translate_x - x, -pps.translate_y - y, 0))
+    cam.PushModelMatrix(tmat, true)
+
+    local oldClipping = DisableClipping(true)
+    anim.panel:PaintManual(true)
+    DisableClipping(oldClipping)
+
+    cam.PopModelMatrix()
+    cam.End2D()
+    render.PopRenderTarget()
 
     local tr = Vector(pps.translate_x + x - anim.offsX, pps.translate_y + y - anim.offsY, 0)
     tr = tr - (tr * scale)
@@ -557,11 +649,19 @@ function DDragParent_TTT2PMS:PaintOver(w, h)
         DisableClipping(prev)
     end
 
-    -- If we don't disable clipping here, the engine does CPU-side vertex clipping which results in
-    -- very strange looking behaviors around the edges of the (projected) view area.
-    local prev = DisableClipping(true)
-    anim.panel:PaintManual(true)
-    DisableClipping(prev)
+    surface.SetMaterial(mat)
+    oldClipping = DisableClipping(true)
+    surface.DrawTexturedRectUV(
+        x,
+        y,
+        pw,
+        ph,
+        0,
+        0,
+        pw / rt:GetMappingWidth(),
+        ph / rt:GetMappingHeight()
+    )
+    DisableClipping(oldClipping)
 
     -- remove the scissor rect again
     render.SetScissorRect(
@@ -589,8 +689,8 @@ end
 function DDragParent_TTT2PMS:PerformLayout()
     -- this panel's parent is the scroll view which contains the draggable area
     local w, h = self:GetParent():GetSize()
-    local w2 = w / C_ShrinkFactor
-    local h2 = h / C_ShrinkFactor
+    local w2 = w -- / C_ShrinkFactor
+    local h2 = h -- / C_ShrinkFactor
 
     local x = (w - w2) / 2
     local y = (h - h2) / 2
