@@ -4,6 +4,13 @@ local vskinGetBackgroundColor
 local drawRoundedBox
 local drawRoundedBoxEx
 
+local surfaceSetMaterial = surface.SetMaterial
+local surfaceSetDrawColor = surface.SetDrawColor
+local surfaceDrawTexturedRect = surface.DrawTexturedRect
+local mathMin = math.min
+
+local matTrashIcon = Material("ttt2pms/trash-icon")
+
 local function GetBoxColor()
     return utilGetChangedColor(vskinGetBackgroundColor(), 20)
 end
@@ -20,12 +27,23 @@ end
 
 local function PaintDragParentTrashZone(skin, pnl, w, h)
     drawRoundedBox(0, 0, 0, w, h, Color(255, 255, 255, 63))
-    -- TODO: draw trash icon
+
+    surfaceSetMaterial(matTrashIcon)
+    surfaceSetDrawColor(GetBoxColor())
+
+    -- compute correct sizing
+    local minDim = mathMin(w, h)
+    local targetSize = minDim - 2 * ttt2pms.cl.plyModelRowVPadding
+    -- max size is texture size
+    targetSize = mathMin(targetSize, matTrashIcon:GetTexture("$basetexture"):GetMappingHeight())
+
+    local tx = (w - targetSize) / 2
+    local ty = (h - targetSize) / 2
+
+    surfaceDrawTexturedRect(tx, ty, targetSize, targetSize)
 end
 
-local function PaintDragList(skin, pnl, w, h)
-    --
-end
+local function PaintDragList(skin, pnl, w, h) end
 
 local function UpdateDefaultSkin()
     print("TTT2PMS: Updating TTT default skin...")

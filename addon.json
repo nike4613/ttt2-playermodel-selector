@@ -1,4 +1,9 @@
 {
   "title": "TTT2 Playermodel Selector",
-  "type": "addon"
+  "type": "addon",
+  "ignore": [
+    "stylua.toml",
+    ".gitignore",
+    "*.png"
+  ]
 }
