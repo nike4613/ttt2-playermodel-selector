@@ -1,3 +1,6 @@
+ttt2pms = ttt2pms or {}
+ttt2pms.cl = ttt2pms.cl or {}
+
 ---@class DDragParent_TTT2PMS : DPanelTTT2
 ---
 ---@field private bDebugShow boolean
@@ -243,6 +246,16 @@ function DDragParent_TTT2PMS:EndDrag()
 
     self.dragState.dragging = false
 
+    local requiredDecrs = 1
+    local function DecrAndFinishDrag()
+        requiredDecrs = requiredDecrs - 1
+        if requiredDecrs == 0 then
+            self:SetZPos(-32768)
+            self.draggable = nil
+            self.dragState = nil
+        end
+    end
+
     if self.dragState.trashHovered then
         -- the drag finished while the trash was hovered
         self.draggable:trash()
@@ -272,7 +285,10 @@ function DDragParent_TTT2PMS:EndDrag()
                 panel:SetVisible(false)
                 panel:Remove()
             end
+
+            DecrAndFinishDrag()
         end
+        requiredDecrs = requiredDecrs + 1
 
         local waitForAnimate = self.draggable:finish(pos, AnimateDone)
         if not waitForAnimate then
@@ -286,8 +302,10 @@ function DDragParent_TTT2PMS:EndDrag()
         local tranim = self.pnlTrash:NewAnimation(C_TrashShowTime, 0, 2, function(_, pnl)
             pnl:SetVisible(false)
             pnl:SetTall(0)
-            self:SetZPos(-32768)
+
+            DecrAndFinishDrag()
         end)
+        requiredDecrs = requiredDecrs + 1
         tranim.Pos = Vector(0, self.originY - self.nTrashHeight)
         tranim.Think = MoveThinkRelTarget
 
@@ -343,12 +361,9 @@ function DDragParent_TTT2PMS:EndDrag()
         else
             self.trashAnim = nil
         end
-    else
-        self:SetZPos(-32768)
     end
 
-    self.draggable = nil
-    self.dragState = nil
+    DecrAndFinishDrag()
 end
 
 function DDragParent_TTT2PMS:CancelDrag()
@@ -512,9 +527,7 @@ function DDragParent_TTT2PMS:Think()
     self.lastThinkTime = thinkTime
 end
 
-ttt2pms = ttt2pms or {}
-ttt2pms.cl = ttt2pms.cl or {}
-ttt2pms.cl.pow2RenderTargets = {}
+ttt2pms.cl.pow2RenderTargets = ttt2pms.cl.pow2RenderTargets or {}
 local pow2RenderTargets = ttt2pms.cl.pow2RenderTargets
 
 ---
@@ -714,3 +727,100 @@ derma.DefineControl(
     DDragParent_TTT2PMS,
     "DPanelTTT2"
 )
+
+---Find the containing DScrollPanelTTT2 of pnl.
+---@param pnl Panel the panel to find a scrolling parent of
+---@return Panel? scrollPanel the parent DScrollPanelTTT2
+---@return Panel lastChecked the last found parent panel checked
+function ttt2pms.cl.FindParentScrollPanel(pnl)
+    local lastChecked = pnl
+    while pnl and pnl:GetName() ~= "DScrollPanelTTT2" do
+        lastChecked = pnl
+        pnl = pnl:GetParent()
+    end
+
+    return pnl, lastChecked
+end
+
+---Finds a DDragParent_TTT2PMS which is a child of `pnl`.
+---@param pnl Panel the panel whose children will be searched
+---@return DDragParent_TTT2PMS? dragParent the located drag parent
+function ttt2pms.cl.FindDragParentIn(pnl)
+    local children = pnl:GetChildren()
+    for i = 1, #children do
+        local child = children[i]
+
+        if child and child:GetName() == "DDragParent_TTT2PMS" then
+            return child
+        end
+    end
+
+    return nil
+end
+
+---Gets or creates a DDragParent_TTT2PMS parented (directly) to `parent`.
+---@param parent Panel the parent panel of the drag parent
+---@return DDragParent_TTT2PMS panel the found or created drag parent
+function ttt2pms.cl.GetOrCreateDragParent(parent)
+    -- first, search children
+    local dragParent = ttt2pms.cl.FindDragParentIn(parent)
+    if dragParent then
+        return dragParent
+    end
+
+    -- no drag parent was found
+    local parentIsScrollPanel = parent:GetName() == "DScrollPanelTTT2"
+
+    -- if we're parenting to a scroll panel, we want the drag parent to be *directly* under the
+    -- scroll panel itself, and *not* in its content panel. Thus, this rigamarole.
+    local scrollPanelOnChildAdded
+    if parentIsScrollPanel then
+        scrollPanelOnChildAdded = parent.OnChildAdded
+        --- @diagnostic disable-next-line
+        parent.OnChildAdded = function() end
+    end
+
+    dragParent = vgui.Create("DDragParent_TTT2PMS", parent)
+
+    if parentIsScrollPanel then
+        --- @diagnostic disable-next-line
+        parent.OnChildAdded = scrollPanelOnChildAdded
+    end
+
+    return dragParent
+end
+
+---Locates the nearest DDragParent_TTT2PMS in `pnl`'s heirarchy
+---@param pnl Panel the panel to locate the drag parent for
+---@return DDragParent_TTT2PMS? panel the located drag parent, if any
+function ttt2pms.cl.FindNearestDragParent(pnl)
+    while pnl do
+        local res = ttt2pms.cl.FindDragParentIn(pnl)
+        if res then
+            return res
+        end
+
+        pnl = pnl:GetParent()
+    end
+end
+
+---Gets or creates the best drag parent for the target panel.
+---This is the nearest one (where it is a child of some ancestor of pnl), or if one doesn't exist,
+---one is created in the nearest ancestor scroll panel, and if no ancestor scroll panel exists, one
+---is created in the root.
+---@param pnl Panel the panel to get a drag parent for
+---@return DDragParent_TTT2PMS dragParent the located drag parent
+function ttt2pms.cl.GetBestDragParent(pnl)
+    -- first, search for a drag parent up the heirarchy
+    local dragParent = ttt2pms.cl.FindNearestDragParent(pnl)
+    if dragParent then
+        return dragParent
+    end
+
+    -- if none were found, lets try to create one. We'll try to put it in the nearest containing
+    -- scroll panel, if present; otherwise, the outermost panel found.
+    local scroll, last = ttt2pms.cl.FindParentScrollPanel(pnl)
+    local chosenParent = scroll or last
+
+    return ttt2pms.cl.GetOrCreateDragParent(chosenParent)
+end

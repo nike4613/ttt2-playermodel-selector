@@ -4,50 +4,65 @@ CLGAMEMODESUBMENU.base = "base_gamemodesubmenu"
 CLGAMEMODESUBMENU.priority = 99
 CLGAMEMODESUBMENU.title = "submenu_customization_selector"
 
----
----@param parent Panel
----@return Panel
-local function FindParentScrollPanel(parent)
-    while parent and parent:GetName() ~= "DScrollPanelTTT2" do
-        parent = parent:GetParent()
-    end
-
-    if not parent then
-        error("Cannot find containing scroll panel")
-    end
-
-    return parent
-end
+---@class _P_ListItem
+---@field model string
+---@field color? Color
+---@field skin number|BodygroupSettings
+---@field bodygroups table<number, number|BodygroupSettings>
 
 function CLGAMEMODESUBMENU:Populate(parent)
     local form = vgui.CreateTTT2Form(parent, "header_customization_selector_form1")
 
-    for i = 1, 5 do
-        ---@type DPlyModelRow_TTT2PMS
-        local row = vgui.Create("DPlyModelRow_TTT2PMS", parent)
-        if i == 5 then
-            local it = vgui.Create("DPlyModelDropCell_TTT2PMS", parent)
-            row:SetParent(it)
+    local scrollParent = ttt2pms.cl.FindParentScrollPanel(parent)
+    if not scrollParent then
+        error("could not find containing scroll parent")
+    end
+    local dragParent = ttt2pms.cl.GetOrCreateDragParent(scrollParent)
+
+    local dragList = vgui.Create("DDragList_TTT2PMS", form)
+    dragList:SetFitWidth(false)
+    dragList:SetDragParent(dragParent)
+    dragList:SetCallbacks({
+        itemFactory = function(p, hnd, item)
+            ---@type _P_ListItem
+            item = item
+
+            local slot = vgui.Create("DPlyModelDropCell_TTT2PMS", p)
+            local row = vgui.Create("DPlyModelRow_TTT2PMS", slot)
             row:Dock(FILL)
-            form:AddItem(it)
-        else
-            form:AddItem(row)
-        end
 
-        row:SetModel(LocalPlayer():GetModel())
+            row:SetModel(item.model)
+            row:SetPlayerColor(item.color)
+            row:SetDisplayColor(item.color)
+            row:SetBodygroups(item.skin, item.bodygroups)
+
+            --- @diagnostic disable-next-line
+            function row:OnMousePressed(keyCode)
+                if keyCode ~= MOUSE_LEFT then
+                    return
+                end
+                dragList:StartDrag(hnd, keyCode, true)
+            end
+
+            return slot, row
+        end,
+
+        ParentItemToSlot = function(_, slot, pnl)
+            pnl:SetParent(slot)
+            pnl:Dock(FILL)
+            pnl:SetPos(0, 0)
+        end,
+
+        changed = function(list)
+            print("drag list changed (by user). now:")
+            for i, it in list:IIter() do
+                PrintTable({ i, it })
+            end
+        end,
+    })
+
+    for i = 1, 5 do
         local plyColor = ttt2pms.util.Vec2Col(LocalPlayer():GetPlayerColor())
-        row:SetPlayerColor(plyColor)
-        if i == 2 then
-            row:SetDisplayColor(nil)
-        else
-            row:SetDisplayColor(plyColor)
-        end
-
-        if i == 3 then
-            local it = vgui.Create("DPlyModelDropCell_TTT2PMS", parent)
-            form:AddItem(it)
-        end
-
         local skin = LocalPlayer():GetSkin()
         local bodygroups = ttt2pms.util.GetBodygroupTbl(LocalPlayer())
 
@@ -57,44 +72,14 @@ function CLGAMEMODESUBMENU:Populate(parent)
             bodygroups2[k] = { random = math.random() < 0.5, value = v }
         end
 
-        row:SetBodygroups(skin2, bodygroups2)
-    end
+        ---@type _P_ListItem
+        local it = {
+            model = LocalPlayer():GetModel(),
+            color = plyColor,
+            skin = skin2,
+            bodygroups = bodygroups2,
+        }
 
-    local scrollPanel = FindParentScrollPanel(parent)
-    -- we need to remove and restore the OnChildAdded when we add this so we actually end up
-    -- parented to it like we want
-    local scrollPanelOnChildAdded = scrollPanel.OnChildAdded
-    --- @diagnostic disable-next-line
-    scrollPanel.OnChildAdded = function() end
-    local dragParent = vgui.Create("DDragParent_TTT2PMS", scrollPanel)
-    --- @diagnostic disable-next-line
-    scrollPanel.OnChildAdded = scrollPanelOnChildAdded
-    --    dragParent:SetDebugShow(true)
-
-    local dropCell = vgui.Create("DPlyModelDropCell_TTT2PMS", parent)
-    form:AddItem(dropCell)
-    local dragRow = vgui.Create("DPlyModelRow_TTT2PMS", parent)
-    dragRow:SetParent(dropCell)
-    dragRow:Dock(FILL)
-    dragRow:SetModel(LocalPlayer():GetModel())
-
-    --- @diagnostic disable-next-line
-    function dragRow:OnMousePressed(keyCode)
-        print("dragRow MousePressed", keyCode)
-        if keyCode == MOUSE_LEFT then
-            --- @type DDragParent_Draggable
-            local d = {
-                btn = keyCode,
-                panel = dragRow,
-                trash = function() end,
-                finish = function(self, pos)
-                    self.panel:SetParent(dropCell)
-                    self.panel:Dock(FILL)
-                end,
-            }
-            d.cancel = d.finish
-
-            dragParent:BeginDrag(d)
-        end
+        dragList:AddItem(it)
     end
 end
