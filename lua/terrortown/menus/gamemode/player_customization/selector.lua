@@ -19,6 +19,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
     end
     local dragParent = ttt2pms.cl.GetOrCreateDragParent(scrollParent)
 
+    ---@type DDragList_TTT2PMS
     local dragList = vgui.Create("DDragList_TTT2PMS", form)
     dragList:SetFitWidth(false)
     dragList:SetDragParent(dragParent)
@@ -28,6 +29,10 @@ function CLGAMEMODESUBMENU:Populate(parent)
             item = item
 
             local slot = vgui.Create("DPlyModelDropCell_TTT2PMS", p)
+            print("CB <- p.wide=" .. p:GetWide())
+            slot:Dock(TOP)
+            slot:SetTall(ttt2pms.cl.plyModelRowHeight)
+
             local row = vgui.Create("DPlyModelRow_TTT2PMS", slot)
             row:Dock(FILL)
 
@@ -50,7 +55,6 @@ function CLGAMEMODESUBMENU:Populate(parent)
         ParentItemToSlot = function(_, slot, pnl)
             pnl:SetParent(slot)
             pnl:Dock(FILL)
-            pnl:SetPos(0, 0)
         end,
 
         changed = function(list)
@@ -60,6 +64,8 @@ function CLGAMEMODESUBMENU:Populate(parent)
             end
         end,
     })
+    dragList:Dock(TOP)
+    dragList:SetPadding(ttt2pms.cl.plyModelRowVPadding)
 
     for i = 1, 5 do
         local plyColor = ttt2pms.util.Vec2Col(LocalPlayer():GetPlayerColor())
@@ -82,4 +88,6 @@ function CLGAMEMODESUBMENU:Populate(parent)
 
         dragList:AddItem(it)
     end
+
+    dragList:PerformLayout()
 end

@@ -12,9 +12,9 @@
 ---@class DDragList_P_Item
 ---@field id number
 ---@field item userdata
----@field pnlParent Panel
----@field pnlSlot Panel
----@field pnlItem Panel
+---@field pnlParent? Panel
+---@field pnlSlot? Panel
+---@field pnlItem? Panel
 ---@field isDragging boolean
 ---@field isNew boolean
 
@@ -33,6 +33,8 @@
 ---
 ---@field private pnlDragParent? DDragParent_TTT2PMS
 ---@field private callbacks? DDragList_Callbacks
+---
+---@field private dirty boolean
 ---
 ---@field private anyIsDragging boolean
 ---@field private nextId number
@@ -57,6 +59,8 @@ function DDragList_TTT2PMS:Init()
 
     self:SetMoveSnapTime(0.1)
     self:SetPadding(0)
+
+    self.dirty = true
 end
 
 ---
@@ -67,18 +71,42 @@ end
 
 ---
 ---@param pnl DDragParent_TTT2PMS
-function DDragList_TTT2PMS:SetDDragParent(pnl)
+function DDragList_TTT2PMS:SetDragParent(pnl)
     self.pnlDragParent = pnl
 end
 
-local function Check(self)
+local function Check(self, throw)
     if not self.callbacks then
-        error("list callbacks not configured")
+        if throw then
+            error("list callbacks not configured")
+        else
+            ErrorNoHaltWithStack("DDragList callbacks check failed")
+            return false
+        end
     end
 
     if not self.pnlDragParent or not IsValid(self.pnlDragParent) then
-        error("drag parent not set or not valid")
+        if throw then
+            error("list callbacks not configured")
+        else
+            ErrorNoHaltWithStack("DDragList pnlDragParent check failed")
+            return false
+        end
     end
+
+    return true
+end
+
+local function DefaultGetOffsetInSlot()
+    return 0, 0
+end
+
+---
+---@param slot Panel
+---@param item Panel
+local function DefaultParentToSlot(_, slot, item)
+    item:SetParent(slot)
+    item:SetPos(0, 0)
 end
 
 ---
@@ -94,12 +122,6 @@ function DDragList_TTT2PMS:InsertItem(item, idx)
     local newId = self.nextId
     self.nextId = newId + 1
 
-    local container = vgui.Create("DPanel", self)
-    ---@diagnostic disable-next-line
-    container.PerformLayout = InnerParentPerformLayout
-
-    local pnlSlot, pnlItem = self.callbacks.itemFactory(container, newId, item)
-
     self.itemToId[item] = newId
     table.insert(self.itemOrder, idx, newId)
     self.idMap[newId] = {
@@ -107,24 +129,22 @@ function DDragList_TTT2PMS:InsertItem(item, idx)
         item = item,
         isDragging = false,
         isNew = true,
-        pnlParent = container,
-        pnlSlot = pnlSlot,
-        pnlItem = pnlItem,
     }
 
     self:InvalidateLayout(false)
+    self.dirty = true
 end
 
 ---Adds an item to the drag list.
 ---@param item userdata
 function DDragList_TTT2PMS:AddItem(item)
-    self:InsertItem(item, #self.itemOrder)
+    self:InsertItem(item, #self.itemOrder + 1)
 end
 
 ---Adds a list of items to the drag list, in order.
 ---@param items table<userdata>
 function DDragList_TTT2PMS:AddItems(items)
-    for i = 1, #items do
+    for i = 1, #items + 1 do
         self:AddItem(items[i])
     end
 end
@@ -134,7 +154,7 @@ end
 ---@param value T
 ---@return integer
 local function IndexOf(tbl, value)
-    for i = 1, #tbl do
+    for i = 1, #tbl + 1 do
         if tbl[i] == value then
             return i
         end
@@ -157,6 +177,8 @@ function DDragList_TTT2PMS:RemoveItem(item)
 
     self.itemToId[item] = nil
     self.idMap[id] = nil
+
+    self.dirty = true
 end
 
 ---Get the number of items in this list.
@@ -190,14 +212,44 @@ function DDragList_TTT2PMS:IIter()
     local i = 0
     return function()
         i = i + 1
-        if i < #self.itemOrder then
+        if i <= #self.itemOrder then
             return i, self:Item(i)
         end
     end
 end
 
+---
+---@param list DDragList_TTT2PMS
+---@param callbacks DDragList_Callbacks
+---@param it DDragList_P_Item
+local function LazyInitItem(list, callbacks, it)
+    if not it.pnlParent or not it.pnlSlot or not it.pnlItem then
+        local parent = vgui.Create("DPanelTTT2", list)
+
+        local slot, item = callbacks.itemFactory(parent, it.id, it.item)
+        local _ = (callbacks.ParentItemToSlot or DefaultParentToSlot)(it.item, slot, item)
+
+        parent:InvalidateLayout(true)
+        parent:SizeToChildren(false, true)
+
+        it.pnlParent = parent
+        it.pnlSlot = slot
+        it.pnlItem = item
+    end
+end
+
 function DDragList_TTT2PMS:PerformLayout()
-    Check(self)
+    if not Check(self) then
+        return
+    end
+
+    if not self.dirty then
+        return
+    end
+
+    self.dirty = false
+
+    print("DDragList::PerformLayout")
 
     local snapTime = self:GetMoveSnapTime()
     local padding = self:GetPadding()
@@ -213,7 +265,12 @@ function DDragList_TTT2PMS:PerformLayout()
         local j = order[i]
         local it = self.idMap[j]
 
+        print("[" .. i .. "] j=" .. (j or "(nil)") .. " y=" .. (y or "(nil)") .. " maxw=" .. maxw)
+
+        LazyInitItem(self, self.callbacks, it)
+
         local w, h = it.pnlParent:GetSize()
+        print("w=" .. w .. " h=" .. h)
 
         if it.isNew then
             it.pnlParent:SetPos(x, y)
@@ -232,6 +289,18 @@ function DDragList_TTT2PMS:PerformLayout()
         self:SetSize(maxw, y - padding)
     else
         self:SetTall(y - padding)
+    end
+
+    -- once we've ended up with a width, resize all of the item parents to fit
+    local w = self:GetWide()
+
+    for i = 1, #order do
+        local j = order[i]
+        local it = self.idMap[j]
+
+        it.pnlParent:SetWide(w)
+        it.pnlParent:InvalidateLayout(true)
+        it.pnlParent:SizeToChildren(false, true)
     end
 end
 
@@ -255,14 +324,31 @@ local function FindTargetIndexGivenPosition(self, order, itemId, x, y)
     local padding = self:GetPadding()
     local cy = 0
 
+    print("--- FIND IN LIST --- y=" .. y)
+
     for i = 1, #order do
         local id = order[i]
 
+        print(
+            "    ["
+                .. i
+                .. "] = "
+                .. id
+                .. " : "
+                .. cy
+                .. " < y <= "
+                .. (cy + sloth + padding)
+                .. " ?"
+        )
+
         -- consider: IF we put `itemId` here, would the current mouse position be (vertically) in that space?
-        if cy < y and y < cy + sloth then
-            -- it would; this is the position we should be putting the item.
+        if cy < y and y <= cy + sloth + padding then
+            -- it would; this is the position we should be putting the itemi.
+            print("        y.")
             return i
         end
+
+        print("        n.")
 
         -- if the item we're currently considering is the one we want to insert, we DON'T want to
         -- add it to our consideration.
@@ -273,8 +359,10 @@ local function FindTargetIndexGivenPosition(self, order, itemId, x, y)
         end
     end
 
+    print("")
+
     -- if we reached the end of the list, we want to put it at the end
-    return #order
+    return #order + 1
 end
 
 ---@generic T
@@ -282,29 +370,29 @@ end
 ---@param oldIndex number
 ---@param newIndex number
 ---@param id T
----@return T oldId
+---@return number newIndex
 local function MoveItemInList(tbl, oldIndex, newIndex, id)
-    if oldIndex <= 0 or oldIndex >= #tbl then
+    if oldIndex <= 0 or oldIndex > #tbl then
         error("invalid oldIndex " .. oldIndex)
     end
-    if newIndex <= 0 or newIndex > #tbl then
+    if newIndex <= 0 or newIndex > #tbl + 1 then
         error("invalid newIndex " .. newIndex)
     end
 
     if oldIndex == newIndex then
         local oldId = tbl[oldIndex]
         tbl[newIndex] = id
-        return oldId
+        return newIndex
     end
 
-    local oldId = table.remove(tbl, oldIndex)
+    table.remove(tbl, oldIndex)
     if oldIndex < newIndex then
         -- we just changed the list before the new index; need to adjust
         newIndex = newIndex - 1
     end
     table.insert(tbl, newIndex, id)
 
-    return oldId
+    return newIndex
 end
 
 ---@class DDragList_P_Draggable : DDragParent_Draggable
@@ -322,24 +410,23 @@ local function Draggable_Move(self, pos)
 
     -- figure out where in the list it should go
     local targetIndex = FindTargetIndexGivenPosition(self.list, self.order, self.it.id, x, y)
+    PrintTable({
+        "Draggable_Move",
+        y = y,
+        order = self.order,
+        cur = self.curIdxInOrder,
+        target = targetIndex,
+        id = self.it.id,
+    })
     -- move it, and tell the list to relayout
-    MoveItemInList(self.order, self.curIdxInOrder, targetIndex, self.it.id)
+    targetIndex = MoveItemInList(self.order, self.curIdxInOrder, targetIndex, self.it.id)
+    print("+++ FINAL TARGET INDEX = " .. targetIndex)
     if targetIndex ~= self.curIdxInOrder then
         self.list:InvalidateLayout(false)
         self.curIdxInOrder = targetIndex
+        ---@diagnostic disable-next-line
+        self.list.dirty = true
     end
-end
-
-local function DefaultGetOffsetInSlot()
-    return 0, 0
-end
-
----
----@param slot Panel
----@param item Panel
-local function DefaultParentToSlot(_, slot, item)
-    item:SetParent(slot)
-    item:SetPos(0, 0)
 end
 
 ---@class DDragList_P_MoveItemToSlotAnim : AnimationData
@@ -398,6 +485,7 @@ local function Draggable_Finish(self, pos, doneAnimating)
         ---@diagnostic disable
         self.list.anyIsDragging = false
         self.list.itemOrder = self.order
+        self.list.itemDraggedOrder = nil
         ---@diagnostic enable
 
         ---@diagnostic disable-next-line
@@ -419,11 +507,19 @@ end
 local function Draggable_Trash(self)
     -- the item is REMOVED. Terminate appropriately.
     table.remove(self.order, self.curIdxInOrder)
+    self.it.pnlParent:Remove()
+
+    ---@diagnostic disable
+    self.list.idMap[self.it.id] = nil
+    self.list.itemToId[self.it.item] = nil
+    self.list.dirty = true
+    ---@diagnostic enable
 
     self.it.isDragging = false
     ---@diagnostic disable
     self.list.anyIsDragging = false
     self.list.itemOrder = self.order
+    self.list.itemDraggedOrder = nil
     ---@diagnostic enable
 
     ---@diagnostic disable-next-line
@@ -442,6 +538,7 @@ local function Draggable_Cancel(self)
     ---@diagnostic disable
     self.list.anyIsDragging = false
     self.list.itemDraggedOrder = nil
+    self.list.dirty = true
     ---@diagnostic enable
 
     ---@diagnostic disable-next-line
@@ -467,6 +564,8 @@ function DDragList_TTT2PMS:StartDrag(itemId, btn, allowTrash)
 
     local it = self.idMap[itemId]
 
+    LazyInitItem(self, self.callbacks, it)
+
     self.itemDraggedOrder = table.Copy(self.itemOrder)
 
     ---@type DDragList_P_Draggable
@@ -491,6 +590,7 @@ function DDragList_TTT2PMS:StartDrag(itemId, btn, allowTrash)
     it.isDragging = true
     self.anyIsDragging = true
     self.pnlDragParent:BeginDrag(draggable)
+    self.dirty = true
 end
 
 function DDragList_TTT2PMS:Paint(w, h)
