@@ -77,8 +77,8 @@ end
 ---@field oldLocalY number old panel Y in local coords
 ---@field localX number new panel X in local coords
 ---@field localY number new panel Y in local coords
----@field screenX number mouse X in screen coords
----@field screenY number mouse Y in screen coords
+---@field screenX number panel X in screen coords
+---@field screenY number panel Y in screen coords
 ---@field mouseX number mouse X in local coords
 ---@field mouseY number mouse Y in local coords
 
@@ -262,19 +262,22 @@ function DDragParent_TTT2PMS:EndDrag()
     else
         -- the drag finished while the trash was NOT hovered
         local px, py = self.draggable.panel:GetPos()
+        local mx, my = self.dragState.mouseX, self.dragState.mouseY
         local sx, sy = self:LocalToScreen(px, py)
+        local nx, ny = mx + self.dragState.offsX, my + self.dragState.offsY
+
         ---@type DDragParent_Position
         local pos = {
             parentW = self:GetWide(),
             parentH = self:GetTall(),
-            oldLocalX = px,
-            oldLocalY = py,
-            localX = px,
-            localY = py,
+            oldLocalX = self.dragState.pnlX,
+            oldLocalY = self.dragState.pnlY,
+            mouseX = mx,
+            mouseY = my,
             screenX = sx,
             screenY = sy,
-            mouseX = self.dragState.mouseX,
-            mouseY = self.dragState.mouseY,
+            localX = nx,
+            localY = ny,
         }
 
         local panel = self.draggable.panel
@@ -408,13 +411,14 @@ function DDragParent_TTT2PMS:Think()
     local thinkTime = RealTime()
 
     -- if we're currently dragging, we need to update the dragged panel positioning
-    --
-    local sx, sy = input.GetCursorPos()
-    local mx, my = self:ScreenToLocal(sx, sy)
+    local isx, isy = input.GetCursorPos()
+    local mx, my = self:ScreenToLocal(isx, isy)
 
     if mx ~= self.dragState.mouseX or my ~= self.dragState.mouseY then
         -- the mouse moved since the last time we noticed, do a move update
         local nx, ny = mx + self.dragState.offsX, my + self.dragState.offsY
+
+        local sx, sy = self:LocalToScreen(self.dragState.pnlX, self.dragState.pnlY)
 
         if self.draggable.move then
             ---@type DDragParent_Position

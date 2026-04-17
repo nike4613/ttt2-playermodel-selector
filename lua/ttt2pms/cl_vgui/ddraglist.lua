@@ -109,12 +109,6 @@ local function DefaultParentToSlot(_, slot, item)
     item:SetPos(0, 0)
 end
 
----
----@param self DPanel
-local function InnerParentPerformLayout(self)
-    self:SizeToChildren(true, true)
-end
-
 ---Inserts an item into the drag list.
 ---@param item userdata
 ---@param idx number
@@ -243,19 +237,22 @@ function DDragList_TTT2PMS:PerformLayout()
         return
     end
 
-    if not self.dirty then
+    local sw = self:GetWide()
+
+    if not self.dirty and self.lastWidth == sw then
         return
     end
 
+    self.lastWidth = sw
     self.dirty = false
 
-    print("DDragList::PerformLayout")
+    --print("DDragList::PerformLayout wide=" .. sw)
 
     local snapTime = self:GetMoveSnapTime()
     local padding = self:GetPadding()
 
-    local x = 0
-    local y = 0
+    local x = padding
+    local y = padding
 
     local maxw = 0
 
@@ -265,12 +262,12 @@ function DDragList_TTT2PMS:PerformLayout()
         local j = order[i]
         local it = self.idMap[j]
 
-        print("[" .. i .. "] j=" .. (j or "(nil)") .. " y=" .. (y or "(nil)") .. " maxw=" .. maxw)
+        --print("[" .. i .. "] j=" .. (j or "(nil)") .. " y=" .. (y or "(nil)") .. " maxw=" .. maxw)
 
         LazyInitItem(self, self.callbacks, it)
 
         local w, h = it.pnlParent:GetSize()
-        print("w=" .. w .. " h=" .. h)
+        --print("w=" .. w .. " h=" .. h)
 
         if it.isNew then
             it.pnlParent:SetPos(x, y)
@@ -286,19 +283,19 @@ function DDragList_TTT2PMS:PerformLayout()
     end
 
     if self.bFitWidth then
-        self:SetSize(maxw, y - padding)
+        self:SetSize(maxw + 2 * padding, y - padding)
     else
         self:SetTall(y - padding)
     end
 
     -- once we've ended up with a width, resize all of the item parents to fit
-    local w = self:GetWide()
+    sw = self:GetWide()
 
     for i = 1, #order do
         local j = order[i]
         local it = self.idMap[j]
 
-        it.pnlParent:SetWide(w)
+        it.pnlParent:SetWide(sw - 2 * padding)
         it.pnlParent:InvalidateLayout(true)
         it.pnlParent:SizeToChildren(false, true)
     end
@@ -307,59 +304,43 @@ end
 ---
 ---@param self DDragList_TTT2PMS
 ---@param order table<number>
----@param itemId number
+---@param item DDragList_P_Item
 ---@param x number
 ---@param y number
 ---@return number index the index that the given item should be inserted at in the CURRENT list.
-local function FindTargetIndexGivenPosition(self, order, itemId, x, y)
+local function FindTargetIndexGivenPosition(self, order, item, x, y)
     -- note: for the moment, we only care about the Y position, and ignore the X.
 
     if y < 0 then
         return 1
     end
 
-    ---@diagnostic disable-next-line
-    local slotw, sloth = self.idMap[itemId].pnlParent:GetSize()
+    local _, sloth = item.pnlParent:GetSize()
+    local _, itemh = item.pnlItem:GetSize()
+
+    -- offset the Y by 1/2 item height so that we're testing against the "center" of the item
+    y = y + itemh / 2
 
     local padding = self:GetPadding()
     local cy = 0
 
-    print("--- FIND IN LIST --- y=" .. y)
-
     for i = 1, #order do
         local id = order[i]
 
-        print(
-            "    ["
-                .. i
-                .. "] = "
-                .. id
-                .. " : "
-                .. cy
-                .. " < y <= "
-                .. (cy + sloth + padding)
-                .. " ?"
-        )
-
         -- consider: IF we put `itemId` here, would the current mouse position be (vertically) in that space?
-        if cy < y and y <= cy + sloth + padding then
+        if cy < y and y <= cy + sloth + 2 * padding then
             -- it would; this is the position we should be putting the itemi.
-            print("        y.")
             return i
         end
 
-        print("        n.")
-
         -- if the item we're currently considering is the one we want to insert, we DON'T want to
         -- add it to our consideration.
-        if id ~= itemId then
+        if id ~= item.id then
             -- otherwise, advance to next item vertically
             ---@diagnostic disable-next-line
-            cy = cy + padding + self.idMap[id].pnlParent:GetTall()
+            cy = cy + 2 * padding + self.idMap[id].pnlParent:GetTall()
         end
     end
-
-    print("")
 
     -- if we reached the end of the list, we want to put it at the end
     return #order + 1
@@ -380,7 +361,6 @@ local function MoveItemInList(tbl, oldIndex, newIndex, id)
     end
 
     if oldIndex == newIndex then
-        local oldId = tbl[oldIndex]
         tbl[newIndex] = id
         return newIndex
     end
@@ -409,18 +389,9 @@ local function Draggable_Move(self, pos)
     local x, y = self.list:ScreenToLocal(pos.screenX, pos.screenY)
 
     -- figure out where in the list it should go
-    local targetIndex = FindTargetIndexGivenPosition(self.list, self.order, self.it.id, x, y)
-    PrintTable({
-        "Draggable_Move",
-        y = y,
-        order = self.order,
-        cur = self.curIdxInOrder,
-        target = targetIndex,
-        id = self.it.id,
-    })
+    local targetIndex = FindTargetIndexGivenPosition(self.list, self.order, self.it, x, y)
     -- move it, and tell the list to relayout
     targetIndex = MoveItemInList(self.order, self.curIdxInOrder, targetIndex, self.it.id)
-    print("+++ FINAL TARGET INDEX = " .. targetIndex)
     if targetIndex ~= self.curIdxInOrder then
         self.list:InvalidateLayout(false)
         self.curIdxInOrder = targetIndex
@@ -483,9 +454,9 @@ local function Draggable_Finish(self, pos, doneAnimating)
         -- and here's where we commit the drag
         self.it.isDragging = false
         ---@diagnostic disable
-        self.list.anyIsDragging = false
         self.list.itemOrder = self.order
         self.list.itemDraggedOrder = nil
+        self.list.anyIsDragging = false
         ---@diagnostic enable
 
         ---@diagnostic disable-next-line
@@ -498,6 +469,9 @@ local function Draggable_Finish(self, pos, doneAnimating)
     anim.rx = rx
     anim.ry = ry
     anim.slot = self.it.pnlSlot
+
+    ---@diagnostic disable
+    ---@diagnostic enable
 
     return true
 end

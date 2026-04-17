@@ -31,7 +31,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
             local slot = vgui.Create("DPlyModelDropCell_TTT2PMS", p)
             print("CB <- p.wide=" .. p:GetWide())
             slot:Dock(TOP)
-            slot:SetTall(ttt2pms.cl.plyModelRowHeight)
+            slot:SetZPos(-1024)
 
             local row = vgui.Create("DPlyModelRow_TTT2PMS", slot)
             row:Dock(FILL)
@@ -40,6 +40,10 @@ function CLGAMEMODESUBMENU:Populate(parent)
             row:SetPlayerColor(item.color)
             row:SetDisplayColor(item.color)
             row:SetBodygroups(item.skin, item.bodygroups)
+            row:SetZPos(1024)
+
+            row:InvalidateLayout(true)
+            slot:SetTall(row:GetTall())
 
             --- @diagnostic disable-next-line
             function row:OnMousePressed(keyCode)
@@ -67,6 +71,45 @@ function CLGAMEMODESUBMENU:Populate(parent)
     dragList:Dock(TOP)
     dragList:SetPadding(ttt2pms.cl.plyModelRowVPadding)
 
+    local plyColor = ttt2pms.util.Vec2Col(LocalPlayer():GetPlayerColor())
+
+    local pmodels = player_manager.AllValidModels()
+    local testent
+
+    local k = 1
+    for _, mdl in pairs(pmodels) do
+        if k > 5 then
+            break
+        end
+        k = k + 1
+
+        if not testent then
+            testent = ClientsideModel(mdl, RENDERGROUP_OTHER)
+        end
+        if not testent then
+            error("Could not create clientside entity to get bodygroups")
+        end
+        testent:SetModel(mdl)
+
+        local skin = { random = true }
+        local bodygroups = {}
+        for i = 1, testent:GetNumBodyGroups() do
+            bodygroups[i] = { random = true }
+        end
+
+        dragList:AddItem({
+            model = mdl,
+            color = plyColor,
+            skin = skin,
+            bodygroups = bodygroups,
+        })
+    end
+
+    if testent then
+        testent:Remove()
+    end
+
+    --[[
     for i = 1, 5 do
         local plyColor = ttt2pms.util.Vec2Col(LocalPlayer():GetPlayerColor())
         local skin = LocalPlayer():GetSkin()
@@ -88,6 +131,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
 
         dragList:AddItem(it)
     end
+    --]]
 
     dragList:PerformLayout()
 end
