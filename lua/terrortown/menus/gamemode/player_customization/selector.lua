@@ -5,10 +5,7 @@ CLGAMEMODESUBMENU.priority = 99
 CLGAMEMODESUBMENU.title = "submenu_customization_selector"
 
 ---@class _P_ListItem
----@field model string
----@field color? Color
----@field skin number|BodygroupSettings
----@field bodygroups table<number, number|BodygroupSettings>
+---@field model Playermodel
 
 function CLGAMEMODESUBMENU:Populate(parent)
     local form = vgui.CreateTTT2Form(parent, "header_customization_selector_form1")
@@ -19,6 +16,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
     end
     local dragParent = ttt2pms.cl.GetOrCreateDragParent(scrollParent)
 
+    ---@type DDragList_TTT2PMS<_P_ListItem>
     local dragList = vgui.Create("DDragList_TTT2PMS", form)
     dragList:SetFitWidth(false)
     dragList:SetDragParent(dragParent)
@@ -31,10 +29,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
             local row = vgui.Create("DPlyModelRow_TTT2PMS", slot)
             row:Dock(FILL)
 
-            row:SetModel(item.model)
-            row:SetPlayerColor(item.color)
-            row:SetDisplayColor(item.color)
-            row:SetBodygroups(item.skin, item.bodygroups)
+            row:SetPlayerModel(item.model)
             row:SetZPos(1024)
 
             row:InvalidateLayout(true)
@@ -72,7 +67,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
     local testent
 
     local k = 1
-    for _, mdl in pairs(pmodels) do
+    for n, mdl in pairs(pmodels) do
         if k > 5 then
             break
         end
@@ -92,13 +87,38 @@ function CLGAMEMODESUBMENU:Populate(parent)
             bodygroups[i] = { random = true }
         end
 
-        dragList:AddItem({
-            model = mdl,
+        ---@type _P_ListItem
+        local it = {
+            model = {
+                model = n,
+                colorMode = PLAYERMODEL_COLOR_MODE.RANDOM,
+                color = plyColor,
+                skin = skin,
+                bodygroups = bodygroups,
+            },
+        }
+
+        dragList:AddItem(it)
+    end
+
+    local skin = { random = true }
+    local bodygroups = {}
+    for i = 1, LocalPlayer():GetNumBodyGroups() do
+        bodygroups[i] = { random = true }
+    end
+
+    ---@type _P_ListItem
+    local it = {
+        model = {
+            model = player_manager.TranslateToPlayerModelName(LocalPlayer():GetModel()),
+            colorMode = PLAYERMODEL_COLOR_MODE.RANDOM,
             color = plyColor,
             skin = skin,
             bodygroups = bodygroups,
-        })
-    end
+        },
+    }
+
+    dragList:AddItem(it)
 
     if testent then
         testent:Remove()

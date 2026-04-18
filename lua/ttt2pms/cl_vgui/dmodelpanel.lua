@@ -1,5 +1,5 @@
 ---@class DModelPanel_TTT2PMS : DModelPanel
----@field private Entity Entity
+---@field Entity Entity
 ---@field private aLookAngle Angle
 ---@field private vLookatPos Vector
 ---@field private vCamPos Vector
@@ -9,11 +9,25 @@
 ---@field private colColor Color
 ---@field private DirectionalLight table<Color>
 ---@field private LayoutEntity fun(self:DModelPanel_TTT2PMS, ent:Entity)
+---
+---@field GetPlayerColor fun(self:DModelPanel_TTT2PMS):Color
+---@field SetPlayerColor fun(self:DModelPanel_TTT2PMS, col:Color)
+---
+---@field private plymodel? Playermodel
+---@field private plyColor Color
+---@field private updTime number
+---
 local DModelPanel_TTT2PMS = {}
+
+AccessorFunc(DModelPanel_TTT2PMS, "plyColor", "PlayerColor", FORCE_COLOR)
 
 function DModelPanel_TTT2PMS:Init()
     local DModelPanel = vgui.GetControlTable("DModelPanel")
     DModelPanel.Init(self)
+
+    self.updTime = 0
+
+    self:SetPlayerColor(COLOR_WHITE)
 end
 
 function DModelPanel_TTT2PMS:DrawModel()
@@ -155,6 +169,72 @@ function DModelPanel_TTT2PMS:Paint(w, h)
     render.SetStencilEnable(false)
 
     self.LastPaint = RealTime()
+end
+
+---@param self DModelPanel_TTT2PMS
+---@param plymodel Playermodel
+local function UpdateBodygroups(self, plymodel)
+    ---@diagnostic disable-next-line
+    local ent = self.Entity
+
+    if not ent then
+        return
+    end
+
+    ent:SetModel(plymodel.model)
+
+    ---@type Color?
+    local color
+    if plymodel.colorMode == PLAYERMODEL_COLOR_MODE.MODEL then
+        color = plymodel.color
+    elseif plymodel.colorMode == PLAYERMODEL_COLOR_MODE.RANDOM then
+        color = ColorRand(false)
+    end
+    -- any other colormode we leave up to the caller to set the color...
+    if color then
+        self:SetPlayerColor(color)
+    end
+
+    ent:SetSkin(ttt2pms.cl.GetBodygroupValue(plymodel.skin, ent:SkinCount()))
+
+    for i = 0, ent:GetNumBodyGroups() - 1 do
+        local bgrp = plymodel.bodygroups[i]
+        if not bgrp then
+            ent:SetBodygroup(i, 0)
+        else
+            ent:SetBodygroup(i, ttt2pms.cl.GetBodygroupValue(bgrp, ent:GetBodygroupCount(i)))
+        end
+    end
+end
+
+---
+---@param plymodel? Playermodel
+function DModelPanel_TTT2PMS:SetPlayermodel(plymodel)
+    self.plymodel = plymodel
+
+    if plymodel then
+        self:SetModel(player_manager.TranslatePlayerModel(plymodel.model))
+
+        UpdateBodygroups(self, plymodel)
+        self.updTime = UnPredictedCurTime()
+    end
+end
+
+function DModelPanel_TTT2PMS:SetModel(mdl)
+    local DModelPanel = vgui.GetControlTable("DModelPanel")
+    DModelPanel.SetModel(self, mdl)
+
+    ---@diagnostic disable-next-line
+    self.Entity.GetPlayerColor = function()
+        return ttt2pms.util.Col2Vec(self.plyColor)
+    end
+end
+
+function DModelPanel_TTT2PMS:Think()
+    if self.plymodel and UnPredictedCurTime() > self.updTime + 0.5 then
+        UpdateBodygroups(self, self.plymodel)
+        self.updTime = UnPredictedCurTime()
+    end
 end
 
 derma.DefineControl(
