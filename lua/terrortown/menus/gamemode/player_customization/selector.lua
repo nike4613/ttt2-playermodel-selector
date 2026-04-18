@@ -103,30 +103,4 @@ function CLGAMEMODESUBMENU:Populate(parent)
     if testent then
         testent:Remove()
     end
-
-    --[[
-    for i = 1, 5 do
-        local plyColor = ttt2pms.util.Vec2Col(LocalPlayer():GetPlayerColor())
-        local skin = LocalPlayer():GetSkin()
-        local bodygroups = ttt2pms.util.GetBodygroupTbl(LocalPlayer())
-
-        local skin2 = { random = math.random() < 0.5, value = skin }
-        local bodygroups2 = {}
-        for k, v in pairs(bodygroups) do
-            bodygroups2[k] = { random = math.random() < 0.5, value = v }
-        end
-
-        ---@type _P_ListItem
-        local it = {
-            model = LocalPlayer():GetModel(),
-            color = plyColor,
-            skin = skin2,
-            bodygroups = bodygroups2,
-        }
-
-        dragList:AddItem(it)
-    end
-    --]]
-
-    dragList:PerformLayout()
 end

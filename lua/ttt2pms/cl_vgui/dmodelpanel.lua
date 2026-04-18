@@ -146,13 +146,9 @@ function DModelPanel_TTT2PMS:Paint(w, h)
         BLENDFUNC_ADD
     )
 
-    cam.PushModelMatrix(Matrix(), false)
-
     draw.NoTexture()
     surface.SetDrawColor(255, 255, 255, 255)
-    surface.DrawRect(-x, -y, ScrW(), ScrH())
-
-    cam.PopModelMatrix()
+    surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
 
     render.OverrideBlend(false)
 
