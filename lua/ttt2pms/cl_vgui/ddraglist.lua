@@ -1,24 +1,24 @@
----@alias DDragList_ItemFactory fun(parent: Panel, itemHandle: any, item: userdata): Panel, Panel pnlSlot, pnlItem
----@alias DDragList_ListChangedCallback fun(list: DDragList_TTT2PMS)
+---@alias DDragList_ItemFactory<T> fun(parent: Panel, itemHandle: any, item: T): Panel, Panel pnlSlot, pnlItem
+---@alias DDragList_ListChangedCallback<T> fun(list: DDragList_TTT2PMS<T>)
 
----@class DDragList_Callbacks
----@field itemFactory DDragList_ItemFactory
----@field changed? DDragList_ListChangedCallback
+---@class DDragList_Callbacks<T>
+---@field itemFactory DDragList_ItemFactory<T>
+---@field changed? DDragList_ListChangedCallback<T>
 ---if nil, it's treated as 0, 0
----@field GetItemPositionInSlot? fun(item: userdata, slot: Panel, itemPanel: Panel): number, number
+---@field GetItemPositionInSlot? fun(item: T, slot: Panel, itemPanel: Panel): number, number
 ---if nil, SetParent() then SetPos(0, 0)
----@field ParentItemToSlot? fun(item: userdata, slot: Panel, itemPanel: Panel)
+---@field ParentItemToSlot? fun(item: T, slot: Panel, itemPanel: Panel)
 
----@class DDragList_P_Item
+---@class DDragList_P_Item<T>
 ---@field id number
----@field item userdata
+---@field item T
 ---@field pnlParent? Panel
 ---@field pnlSlot? Panel
 ---@field pnlItem? Panel
 ---@field isDragging boolean
 ---@field isNew boolean
 
----@class DDragList_TTT2PMS : DPanelTTT2
+---@class DDragList_TTT2PMS<T> : DPanelTTT2
 ---@field private fMoveSnapTime number
 ---@field GetMoveSnapTime fun(self: DDragList_TTT2PMS): number
 ---@field SetMoveSnapTime fun(self: DDragList_TTT2PMS, speed:number)
@@ -32,16 +32,16 @@
 ---@field SetFitWidth fun(self: DDragList_TTT2PMS, fitWidth: boolean)
 ---
 ---@field private pnlDragParent? DDragParent_TTT2PMS
----@field private callbacks? DDragList_Callbacks
+---@field private callbacks? DDragList_Callbacks<T>
 ---
 ---@field private dirty boolean
 ---
 ---@field private anyIsDragging boolean
 ---@field private nextId number
----@field private idMap table<number, DDragList_P_Item>
+---@field private idMap table<number, DDragList_P_Item<T>>
 ---@field private itemOrder table<number>
 ---@field private itemDraggedOrder? table<number>
----@field private itemToId table<any, number>
+---@field private itemToId table<T, number>
 local DDragList_TTT2PMS = {}
 
 AccessorFunc(DDragList_TTT2PMS, "fMoveSnapTime", "MoveSnapTime", FORCE_NUMBER)
@@ -64,7 +64,7 @@ function DDragList_TTT2PMS:Init()
 end
 
 ---
----@param callbacks DDragList_Callbacks
+---@param callbacks DDragList_Callbacks<T>
 function DDragList_TTT2PMS:SetCallbacks(callbacks)
     self.callbacks = callbacks
 end
@@ -110,7 +110,7 @@ local function DefaultParentToSlot(_, slot, item)
 end
 
 ---Inserts an item into the drag list.
----@param item userdata
+---@param item T
 ---@param idx number
 function DDragList_TTT2PMS:InsertItem(item, idx)
     local newId = self.nextId
@@ -130,13 +130,13 @@ function DDragList_TTT2PMS:InsertItem(item, idx)
 end
 
 ---Adds an item to the drag list.
----@param item userdata
+---@param item T
 function DDragList_TTT2PMS:AddItem(item)
     self:InsertItem(item, #self.itemOrder + 1)
 end
 
 ---Adds a list of items to the drag list, in order.
----@param items table<userdata>
+---@param items table<T>
 function DDragList_TTT2PMS:AddItems(items)
     for i = 1, #items + 1 do
         self:AddItem(items[i])
@@ -157,7 +157,7 @@ local function IndexOf(tbl, value)
 end
 
 ---
----@param item any
+---@param item T
 function DDragList_TTT2PMS:RemoveItem(item)
     local id = self.itemToId[item]
     if not id then
@@ -183,13 +183,13 @@ end
 
 ---Get the item at position i in the list.
 ---@param i number
----@return userdata
+---@return T
 function DDragList_TTT2PMS:Item(i)
     return self.idMap[self.itemOrder[i]].item
 end
 
 ---Gets an iterator over the items in this list.
----@return fun(): userdata?
+---@return fun(): T?
 function DDragList_TTT2PMS:Iter()
     local i = 0
     return function()
@@ -201,7 +201,7 @@ function DDragList_TTT2PMS:Iter()
 end
 
 ---Gets an iterator over the items in this list, alongside their index.
----@return fun(): number?, userdata?
+---@return fun(): number?, T?
 function DDragList_TTT2PMS:IIter()
     local i = 0
     return function()
@@ -212,10 +212,10 @@ function DDragList_TTT2PMS:IIter()
     end
 end
 
----
+---@generic T
 ---@param list DDragList_TTT2PMS
----@param callbacks DDragList_Callbacks
----@param it DDragList_P_Item
+---@param callbacks DDragList_Callbacks<T>
+---@param it DDragList_P_Item<T>
 local function LazyInitItem(list, callbacks, it)
     if not it.pnlParent or not it.pnlSlot or not it.pnlItem then
         local parent = vgui.Create("DPanelTTT2", list)
@@ -301,10 +301,10 @@ function DDragList_TTT2PMS:PerformLayout()
     end
 end
 
----
----@param self DDragList_TTT2PMS
+---@generic T
+---@param self DDragList_TTT2PMS<T>
 ---@param order table<number>
----@param item DDragList_P_Item
+---@param item DDragList_P_Item<T>
 ---@param x number
 ---@param y number
 ---@return number index the index that the given item should be inserted at in the CURRENT list.
@@ -375,14 +375,14 @@ local function MoveItemInList(tbl, oldIndex, newIndex, id)
     return newIndex
 end
 
----@class DDragList_P_Draggable : DDragParent_Draggable
----@field it DDragList_P_Item
----@field list DDragList_TTT2PMS
+---@class DDragList_P_Draggable<T> : DDragParent_Draggable
+---@field it DDragList_P_Item<T>
+---@field list DDragList_TTT2PMS<T>
 ---@field curIdxInOrder number
 ---@field order table<number>
 
----
----@param self DDragList_P_Draggable
+---@generic T
+---@param self DDragList_P_Draggable<T>
 ---@param pos DDragParent_Position
 local function Draggable_Move(self, pos)
     -- convert position coordinates
@@ -421,8 +421,8 @@ local function MoveItemToSlotAnim_Think(anim, pnlItem, t)
     pnlItem:SetPos(p.x, p.y)
 end
 
----
----@param self DDragList_P_Draggable
+---@generic T
+---@param self DDragList_P_Draggable<T>
 ---@param pos DDragParent_Position
 ---@param doneAnimating fun()
 ---@return true
@@ -476,8 +476,8 @@ local function Draggable_Finish(self, pos, doneAnimating)
     return true
 end
 
----
----@param self DDragList_P_Draggable
+---@generic T
+---@param self DDragList_P_Draggable<T>
 local function Draggable_Trash(self)
     -- the item is REMOVED. Terminate appropriately.
     table.remove(self.order, self.curIdxInOrder)
@@ -503,8 +503,8 @@ local function Draggable_Trash(self)
     end
 end
 
----
----@param self DDragList_P_Draggable
+---@generic T
+---@param self DDragList_P_Draggable<T>
 local function Draggable_Cancel(self)
     -- as far as it goes, cancel is really very simple. we just need to fully restore state to what
     -- it was before the drag.

@@ -19,17 +19,12 @@ function CLGAMEMODESUBMENU:Populate(parent)
     end
     local dragParent = ttt2pms.cl.GetOrCreateDragParent(scrollParent)
 
-    ---@type DDragList_TTT2PMS
     local dragList = vgui.Create("DDragList_TTT2PMS", form)
     dragList:SetFitWidth(false)
     dragList:SetDragParent(dragParent)
     dragList:SetCallbacks({
         itemFactory = function(p, hnd, item)
-            ---@type _P_ListItem
-            item = item
-
             local slot = vgui.Create("DPlyModelDropCell_TTT2PMS", p)
-            print("CB <- p.wide=" .. p:GetWide())
             slot:Dock(TOP)
             slot:SetZPos(-1024)
 
