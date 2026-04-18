@@ -23,8 +23,7 @@ PLAYERMODEL_COLOR_MODE = {
 ---@field globalColor           Color                   The user global player color
 ---@field defaultColorMode      PLAYERMODEL_COLOR_MODE  The default playermodel color mode
 ---
----@field usePrimaryModel       boolean                 Whether to use the configured primary model
----@field primaryModel          Playermodel|nil         The primary model.
+---@field playermodel?          Playermodel             The playermodel to use when unique playermodels are disabled.
 ---
 ---@field usePriorityModels     boolean                 Whether to use priority models
 ---@field priorityModels        table<Playermodel>      The priority playermodels.
@@ -36,7 +35,7 @@ PLAYERMODEL_COLOR_MODE = {
 ---@class Playermodel
 ---@field model         string                              The name of the model.
 ---@field color         Color                               The model-specific color. Only meaningful with @{PLAYERMODEL_COLOR_MODE.MODEL}.
----@field colorMode     PLAYERMODEL_COLOR_MODE|nil          The color mode to use for this model.
+---@field colorMode?    PLAYERMODEL_COLOR_MODE              The color mode to use for this model.
 ---@field skin          BodygroupSettings                   The model skin to use
 ---@field bodygroups    table<number,BodygroupSettings>     The bodygroup settings for the playermodel.
 

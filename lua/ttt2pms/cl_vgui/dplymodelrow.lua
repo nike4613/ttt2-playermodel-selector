@@ -6,6 +6,7 @@ local DPlyModelRow_TTT2PMS = {}
 
 function DPlyModelRow_TTT2PMS:Init()
     self.plymodel = nil
+    self.userSettings = nil
     self.mdlDispColor = nil
     self.timerTime = 0
 
@@ -80,6 +81,18 @@ function DPlyModelRow_TTT2PMS:SetPlayerModel(mdl)
     end
 
     self:InvalidateLayout()
+end
+
+---
+---@param settings PlayermodelSettings
+---@param serverColor? Color
+function DPlyModelRow_TTT2PMS:SetUserSettings(settings, serverColor)
+    self.userSettings = settings
+    self.pnlModel:SetGlobalSettings(
+        settings.defaultColorMode,
+        settings.globalColor,
+        serverColor or COLOR_WHITE
+    )
 end
 
 ---

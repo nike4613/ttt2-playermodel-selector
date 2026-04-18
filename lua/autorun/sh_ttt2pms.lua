@@ -44,6 +44,7 @@ local function LoadVgui()
     include_cl("ttt2pms/cl_vgui/dmodelpanel.lua")
     include_cl("ttt2pms/cl_vgui/dplymodelrow.lua")
     include_cl("ttt2pms/cl_vgui/dplymodeldropcell.lua")
+    include_cl("ttt2pms/cl_vgui/modelselectpnl.lua")
 end
 LoadVgui()
 hook.Add("OnReloaded", "TTT2PMS_Vgui", LoadVgui)

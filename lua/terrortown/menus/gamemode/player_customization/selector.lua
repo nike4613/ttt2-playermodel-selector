@@ -30,6 +30,10 @@ function CLGAMEMODESUBMENU:Populate(parent)
             row:Dock(FILL)
 
             row:SetPlayerModel(item.model)
+            row:SetUserSettings({
+                defaultColorMode = PLAYERMODEL_COLOR_MODE.SERVER,
+                globalColor = COLOR_WHITE,
+            }, COLOR_BLACK)
             row:SetZPos(1024)
 
             row:InvalidateLayout(true)
@@ -123,4 +127,19 @@ function CLGAMEMODESUBMENU:Populate(parent)
     if testent then
         testent:Remove()
     end
+
+    form:MakeButton({
+        label = "create model selection popup",
+        OnClick = function()
+            ttt2pms.cl.ShowModelSelectPopup({
+                initialModel = it.model,
+                serverColor = COLOR_WHITE,
+                userSettings = {
+                    defaultColorMode = PLAYERMODEL_COLOR_MODE.SERVER,
+                    globalColor = COLOR_BLACK,
+                    --
+                },
+            })
+        end,
+    })
 end

@@ -14,6 +14,9 @@
 ---@field SetPlayerColor fun(self:DModelPanel_TTT2PMS, col:Color)
 ---
 ---@field private plymodel? Playermodel
+---@field private userColorMode PLAYERMODEL_COLOR_MODE
+---@field private userColor Color
+---@field private serverColor Color
 ---@field private plyColor Color
 ---@field private updTime number
 ---
@@ -173,7 +176,37 @@ end
 
 ---@param self DModelPanel_TTT2PMS
 ---@param plymodel Playermodel
-local function UpdateBodygroups(self, plymodel)
+---@param updateRandom boolean
+local function UpdatePlayerColor(self, plymodel, updateRandom)
+    ---@diagnostic disable-next-line
+    local colorMode = plymodel.colorMode or self.userColorMode
+
+    ---@type Color?
+    local color
+    if colorMode == PLAYERMODEL_COLOR_MODE.MODEL then
+        color = plymodel.color
+    elseif colorMode == PLAYERMODEL_COLOR_MODE.RANDOM then
+        if updateRandom then
+            color = ColorRand(false)
+        end
+    elseif colorMode == PLAYERMODEL_COLOR_MODE.USER_GLOBAL then
+        ---@diagnostic disable-next-line
+        color = self.userColor
+    elseif colorMode == PLAYERMODEL_COLOR_MODE.SERVER then
+        ---@diagnostic disable-next-line
+        color = self.serverColor
+    end
+
+    -- any other colormode we leave up to the caller to set the color...
+    if color then
+        self:SetPlayerColor(color)
+    end
+end
+
+---@param self DModelPanel_TTT2PMS
+---@param plymodel Playermodel
+---@param updateRandom boolean
+local function UpdateBodygroups(self, plymodel, updateRandom)
     ---@diagnostic disable-next-line
     local ent = self.Entity
 
@@ -181,28 +214,18 @@ local function UpdateBodygroups(self, plymodel)
         return
     end
 
-    ent:SetModel(plymodel.model)
-
-    ---@type Color?
-    local color
-    if plymodel.colorMode == PLAYERMODEL_COLOR_MODE.MODEL then
-        color = plymodel.color
-    elseif plymodel.colorMode == PLAYERMODEL_COLOR_MODE.RANDOM then
-        color = ColorRand(false)
+    if not istable(plymodel.skin) or not plymodel.skin.random or updateRandom then
+        ent:SetSkin(ttt2pms.cl.GetBodygroupValue(plymodel.skin, ent:SkinCount()))
     end
-    -- any other colormode we leave up to the caller to set the color...
-    if color then
-        self:SetPlayerColor(color)
-    end
-
-    ent:SetSkin(ttt2pms.cl.GetBodygroupValue(plymodel.skin, ent:SkinCount()))
 
     for i = 0, ent:GetNumBodyGroups() - 1 do
         local bgrp = plymodel.bodygroups[i]
         if not bgrp then
             ent:SetBodygroup(i, 0)
         else
-            ent:SetBodygroup(i, ttt2pms.cl.GetBodygroupValue(bgrp, ent:GetBodygroupCount(i)))
+            if not istable(bgrp) or not bgrp.random or updateRandom then
+                ent:SetBodygroup(i, ttt2pms.cl.GetBodygroupValue(bgrp, ent:GetBodygroupCount(i)))
+            end
         end
     end
 end
@@ -210,13 +233,31 @@ end
 ---
 ---@param plymodel? Playermodel
 function DModelPanel_TTT2PMS:SetPlayermodel(plymodel)
-    self.plymodel = plymodel
-
     if plymodel then
-        self:SetModel(player_manager.TranslatePlayerModel(plymodel.model))
+        local mdlPath = player_manager.TranslatePlayerModel(plymodel.model)
+        if not self.Entity or self.Entity:GetModel() ~= mdlPath then
+            self:SetModel(mdlPath)
+        end
 
-        UpdateBodygroups(self, plymodel)
-        self.updTime = UnPredictedCurTime()
+        UpdatePlayerColor(self, plymodel, false)
+        UpdateBodygroups(self, plymodel, false)
+    end
+
+    self.plymodel = plymodel
+end
+
+---
+---@param defaultMode PLAYERMODEL_COLOR_MODE
+---@param userColor Color
+---@param serverColor Color
+function DModelPanel_TTT2PMS:SetGlobalSettings(defaultMode, userColor, serverColor)
+    self.userColorMode = defaultMode
+    self.userColor = userColor
+    self.serverColor = serverColor
+
+    if self.plymodel then
+        UpdatePlayerColor(self, self.plymodel, false)
+        UpdateBodygroups(self, self.plymodel, false)
     end
 end
 
@@ -232,7 +273,8 @@ end
 
 function DModelPanel_TTT2PMS:Think()
     if self.plymodel and UnPredictedCurTime() > self.updTime + 0.5 then
-        UpdateBodygroups(self, self.plymodel)
+        UpdatePlayerColor(self, self.plymodel, true)
+        UpdateBodygroups(self, self.plymodel, true)
         self.updTime = UnPredictedCurTime()
     end
 end
