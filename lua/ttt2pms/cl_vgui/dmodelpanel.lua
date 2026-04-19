@@ -271,6 +271,13 @@ function DModelPanel_TTT2PMS:SetModel(mdl)
     end
 end
 
+function DModelPanel_TTT2PMS:UpdateBodygroups()
+    if self.plymodel then
+        UpdatePlayerColor(self, self.plymodel, false)
+        UpdateBodygroups(self, self.plymodel, false)
+    end
+end
+
 function DModelPanel_TTT2PMS:Think()
     if self.plymodel and UnPredictedCurTime() > self.updTime + 0.5 then
         UpdatePlayerColor(self, self.plymodel, true)

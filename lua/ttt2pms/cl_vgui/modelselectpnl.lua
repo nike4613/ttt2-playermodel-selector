@@ -17,6 +17,8 @@ ttt2pms.cl = ttt2pms.cl or {}
 ---@field private plymodelSettings PlayermodelSettings
 ---@field private serverColor Color
 ---
+---@field private bodygroupsFormItems table
+---
 local ModelSelectorPanel_TTT2PMS = {}
 
 function ModelSelectorPanel_TTT2PMS:Init()
@@ -43,6 +45,7 @@ function ModelSelectorPanel_TTT2PMS:Init()
     bodygroupsScroll:Dock(FILL) -- fill remaining space in container
 
     local colorForm = vgui.CreateTTT2Form(bodygroupsScroll, "ttt2pms_select_model_color_header")
+    colorForm:SetLabelWidth(50)
     self.pnlFormColor = colorForm
     colorForm:Dock(TOP)
 
@@ -83,8 +86,7 @@ function ModelSelectorPanel_TTT2PMS:Init()
             ) == PLAYERMODEL_COLOR_MODE.MODEL
         )
 
-        self.modelDirty = true
-        self:InvalidateLayout(false)
+        self.pnlModel:UpdateBodygroups()
         self.pnlColorSelector:GetParent():InvalidateLayout(false)
 
         if self.OnChanged then
@@ -101,16 +103,30 @@ function ModelSelectorPanel_TTT2PMS:Init()
     ---@diagnostic disable-next-line
     self.pnlColorSelector.ValueChanged = function(_, color)
         self.plymodel.color = color
-        self.modelDirty = true
-        self:InvalidateLayout(false)
+        self.pnlModel:UpdateBodygroups()
     end
 
     colorForm:AddItem(self.pnlColorSelector)
 
     local bodygroupsForm =
         vgui.CreateTTT2Form(bodygroupsScroll, "ttt2pms_select_model_bodygroups_header")
+    bodygroupsForm:SetLabelWidth(150)
     self.pnlFormBodygroups = bodygroupsForm
     bodygroupsForm:Dock(TOP)
+
+    self.bodygroupsFormItems = {
+        ---@type table<DNumberWangTTT2>
+        bodygroups = {},
+    }
+
+    -- first, the skin item. this will always be present.
+    local skinWang = self:_MakeWangForBodygroup(
+        bodygroupsForm,
+        { random = false, value = 0 },
+        "ttt2pms_select_model_bodygroup_skin_label"
+    )
+    self.bodygroupsFormItems.skin = skinWang
+    skinWang:GetParent():SetVisible(false)
 
     -- lower panel
     local lower = self:Add("DPanelTTT2")
@@ -132,6 +148,41 @@ function ModelSelectorPanel_TTT2PMS:Init()
     modelsIconLayout:SetLayoutDir(LEFT)
 end
 
+---@class DTextEntryTTT2 : DTextEntry, DPanelTTT2
+---@class DNumberWangTTT2 : DNumberWang, DTextEntryTTT2
+
+---@param form DFormTTT2
+---@param bgrp BodygroupSettings
+---@param label string
+---@return DNumberWangTTT2
+function ModelSelectorPanel_TTT2PMS:_MakeWangForBodygroup(form, bgrp, label)
+    ---@type DNumberWangTTT2
+    local wang
+    wang = form:MakeNumberWang({
+        label = label,
+        default = 0,
+        OnChange = function(_, value)
+            wang.bgrp.value = value
+            self.pnlModel:UpdateBodygroups()
+        end,
+        initial = bgrp.value,
+        enableToggle = true,
+        -- TODO: toggleIconMaterial = { materialNotRandom, materialRandom }
+        toggleInitialState = bgrp.random and 2 or 1,
+        OnClickToggle = function(_, state)
+            local rand = state == 2
+            wang:SetEnabled(not rand)
+            wang:InvalidateLayout(false)
+            wang.bgrp.random = rand
+            self.pnlModel:UpdateBodygroups()
+        end,
+    })
+    wang.bgrp = bgrp
+    wang:SetEnabled(not bgrp.random)
+
+    return wang
+end
+
 function ModelSelectorPanel_TTT2PMS:PerformLayout()
     if self.modelDirty then
         print("selector panel modelDirty")
@@ -139,6 +190,56 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
         self.pnlModel:SetPlayermodel(self.plymodel)
         self.pnlCmbColorMode:ChooseOptionValue(self.plymodel.colorMode or -1)
         self.pnlColorSelector:SetColor(self.plymodel.color)
+
+        local visibleRowCt = 0
+
+        local skins = self.pnlModel.Entity:SkinCount()
+        if skins > 1 then
+            visibleRowCt = 1
+            self.bodygroupsFormItems.skin:GetParent():SetVisible(true)
+            self.bodygroupsFormItems.skin.bgrp = self.plymodel.skin
+            self.bodygroupsFormItems.skin.toggleBtn.state = self.plymodel.skin.random and 2 or 1
+            self.bodygroupsFormItems.skin:SetMinMax(0, skins - 1)
+            self.bodygroupsFormItems.skin:SetValue(self.plymodel.skin.value)
+            self.bodygroupsFormItems.skin:SetEnabled(not self.plymodel.skin.random)
+        else
+            self.bodygroupsFormItems.skin:GetParent():SetVisible(false)
+            self.bodygroupsFormItems.skin.bgrp = { random = false, value = 0 }
+        end
+
+        -- clear the existing bodygroups
+        for i = 1, #self.bodygroupsFormItems.bodygroups do
+            self.bodygroupsFormItems.bodygroups[i]:GetParent():Remove()
+        end
+
+        -- initialize the new ones
+        local bgrpTbl = {}
+        self.bodygroupsFormItems.bodygroups = bgrpTbl
+
+        for i = 0, self.pnlModel.Entity:GetNumBodyGroups() - 1 do
+            local ct = self.pnlModel.Entity:GetBodygroupCount(i)
+
+            if ct > 1 then
+                visibleRowCt = visibleRowCt + 1
+
+                local bgrp = self.plymodel.bodygroups[i] or { random = false, value = 0 }
+                self.plymodel.bodygroups[i] = bgrp
+                bgrp.random = tobool(bgrp or false)
+                bgrp.value = tonumber(bgrp.value) or 0
+
+                local wang = self:_MakeWangForBodygroup(
+                    self.pnlFormBodygroups,
+                    bgrp,
+                    self.pnlModel.Entity:GetBodygroupName(i)
+                )
+                wang:SetMinMax(0, ct - 1)
+
+                bgrpTbl[#bgrpTbl + 1] = wang
+            end
+        end
+
+        self.pnlFormBodygroups:InvalidateLayout(true)
+        self.pnlFormBodygroups:SetVisible(visibleRowCt ~= 0)
     end
     self.modelDirty = false
 
@@ -168,6 +269,8 @@ end
 ---@param model Playermodel
 function ModelSelectorPanel_TTT2PMS:SetPlayerModel(model)
     self.plymodel = table.Copy(model)
+    self.plymodel.skin.random = tobool(self.plymodel.skin.random or false)
+    self.plymodel.skin.value = tonumber(self.plymodel.skin.value) or 0
     self.modelDirty = true
     self:InvalidateLayout(false)
 end
