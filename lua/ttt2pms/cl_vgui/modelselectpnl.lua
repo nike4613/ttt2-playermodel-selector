@@ -24,6 +24,8 @@ local ModelSelectorPanel_TTT2PMS = {}
 local materialReset = Material("vgui/ttt/vskin/icon_reset")
 
 function ModelSelectorPanel_TTT2PMS:Init()
+    local TryT = LANG.TryTranslation
+
     self.serverColor = COLOR_WHITE
     self.modelDirty = false
 
@@ -128,56 +130,58 @@ function ModelSelectorPanel_TTT2PMS:Init()
     bodygroupsScroll:Dock(FILL) -- fill remaining space in container
 
     local colorForm = vgui.CreateTTT2Form(bodygroupsScroll, "ttt2pms_select_model_color_header")
-    colorForm:SetLabelWidth(50)
+    colorForm:SetLabelWidth(150)
     self.pnlFormColor = colorForm
     colorForm:Dock(TOP)
 
-    ---@type DComboBoxTTT2
-    self.pnlCmbColorMode = vgui.Create("DComboBoxTTT2", self)
-    self.pnlCmbColorMode:SetTall(32)
-    self.pnlCmbColorMode:Dock(TOP)
-    self.pnlCmbColorMode:AddChoice("ttt2pms_select_model_color_mode_opt_default", -1)
-    self.pnlCmbColorMode:AddChoice(
-        "ttt2pms_select_model_color_mode_opt_server",
-        PLAYERMODEL_COLOR_MODE.SERVER
-    )
-    self.pnlCmbColorMode:AddChoice(
-        "ttt2pms_select_model_color_mode_opt_user",
-        PLAYERMODEL_COLOR_MODE.USER_GLOBAL
-    )
-    self.pnlCmbColorMode:AddChoice(
-        "ttt2pms_select_model_color_mode_opt_model",
-        PLAYERMODEL_COLOR_MODE.MODEL
-    )
-    self.pnlCmbColorMode:AddChoice(
-        "ttt2pms_select_model_color_mode_opt_random",
-        PLAYERMODEL_COLOR_MODE.RANDOM
-    )
-    self.pnlCmbColorMode:SetDefaultValue(-1)
-    self.pnlCmbColorMode.OnSelect = function(_, _, value, _)
-        local isNil = value == -1
-        if not isNil then
-            self.plymodel.colorMode = tonumber(value)
-        else
-            self.plymodel.colorMode = nil
-        end
+    self.pnlCmbColorMode = colorForm:MakeComboBox({
+        label = "ttt2pms_select_model_color_mode_label",
+        default = -1,
+        choices = {
+            {
+                title = TryT("ttt2pms_select_model_color_mode_opt_default"),
+                value = -1,
+            },
+            {
+                title = TryT("ttt2pms_select_model_color_mode_opt_server"),
+                value = PLAYERMODEL_COLOR_MODE.SERVER,
+            },
+            {
+                title = TryT("ttt2pms_select_model_color_mode_opt_user"),
+                value = PLAYERMODEL_COLOR_MODE.USER_GLOBAL,
+            },
+            {
+                title = TryT("ttt2pms_select_model_color_mode_opt_model"),
+                value = PLAYERMODEL_COLOR_MODE.MODEL,
+            },
+            {
+                title = TryT("ttt2pms_select_model_color_mode_opt_random"),
+                value = PLAYERMODEL_COLOR_MODE.RANDOM,
+            },
+        },
+        OnChange = function(value)
+            local isNil = value == -1
+            if not isNil then
+                self.plymodel.colorMode = tonumber(value)
+            else
+                self.plymodel.colorMode = nil
+            end
 
-        self.pnlColorSelector:SetVisible(
-            (
-                self.plymodel.colorMode
-                or (self.plymodelSettings and self.plymodelSettings.defaultColorMode)
-            ) == PLAYERMODEL_COLOR_MODE.MODEL
-        )
+            self.pnlColorSelector:SetVisible(
+                (
+                    self.plymodel.colorMode
+                    or (self.plymodelSettings and self.plymodelSettings.defaultColorMode)
+                ) == PLAYERMODEL_COLOR_MODE.MODEL
+            )
 
-        self.pnlModel:UpdateBodygroups()
-        self.pnlColorSelector:GetParent():InvalidateLayout(false)
+            self.pnlModel:UpdateBodygroups()
+            self.pnlColorSelector:GetParent():InvalidateLayout(false)
 
-        if self.OnChanged then
-            self.OnChanged(table.Copy(self.plymodel))
-        end
-    end
-
-    colorForm:AddItem(self.pnlCmbColorMode)
+            if self.OnChanged then
+                self.OnChanged(table.Copy(self.plymodel))
+            end
+        end,
+    })
 
     self.pnlColorSelector = vgui.Create("DColorMixer", self)
     self.pnlColorSelector:SetPalette(true)
