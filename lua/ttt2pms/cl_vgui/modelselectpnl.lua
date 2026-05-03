@@ -19,6 +19,8 @@ ttt2pms.cl = ttt2pms.cl or {}
 ---
 ---@field private bodygroupsFormItems table
 ---
+---@field private availablePlayermodels table<string>
+---
 local ModelSelectorPanel_TTT2PMS = {}
 
 local materialReset = Material("vgui/ttt/vskin/icon_reset")
@@ -55,6 +57,7 @@ function ModelSelectorPanel_TTT2PMS:Init()
             slf.Pos = Vector(-100, 0, -61)
         end,
     }
+    self.pnlModelPos = mdlDrag
     mdlDrag:DefaultPos()
 
     function modelDisplay:DragMousePress(btn)
@@ -67,6 +70,8 @@ function ModelSelectorPanel_TTT2PMS:Init()
     function modelDisplay:OnMouseWheeled(delta)
         mdlDrag.wheel = delta * -10
         mdlDrag.wheeled = true
+
+        return true
     end
 
     function modelDisplay:LayoutEntity(ent)
@@ -216,23 +221,99 @@ function ModelSelectorPanel_TTT2PMS:Init()
     skinWang:GetParent():SetVisible(false)
 
     -- lower panel
-    local lower = self:Add("DPanelTTT2")
+    local lower = self:Add("DSizeToContents")
     lower:Dock(TOP) -- fill remaining space in container
 
     local searchBar = lower:Add("DTextEntryTTT2")
     self.pnlSearchBar = searchBar
+    searchBar:SetTall(32)
     searchBar:Dock(TOP)
-    searchBar:SetDefaultValue(LANG.GetTranslation("ttt2pms_select_model_search"))
+    searchBar:SetDefaultValue(TryT("ttt2pms_select_model_search"))
+    ---@param value? string
+    searchBar.OnValueChanged = function(pnl, value)
+        if self.availablePlayermodels then
+            if value == "" then
+                value = nil
+            end
+            self:_UpdateAvailableModels(value)
+        end
+    end
+
+    -- TODO: for the popup case, we really want this list to be in a scrollview, instead of being
+    -- part of the outer scrollview.
+    -- In the *non* popup case, though, I *think* we want to not be in its own scrollview.
 
     ---@type DIconLayout
     local modelsIconLayout = lower:Add("DIconLayout")
     self.pnlIconLayout = modelsIconLayout
-    modelsIconLayout:Dock(FILL)
+    modelsIconLayout:Dock(TOP)
+    modelsIconLayout:SetBorder(padding)
     modelsIconLayout:SetSpaceX(padding)
     modelsIconLayout:SetSpaceY(padding)
     modelsIconLayout:SetStretchHeight(true)
     modelsIconLayout:SetStretchWidth(false)
-    modelsIconLayout:SetLayoutDir(LEFT)
+    modelsIconLayout:SetLayoutDir(TOP)
+
+    ttt2pms.util.GetSelectablePlayermodels(function(plymodels)
+        self.availablePlayermodels = table.Copy(plymodels)
+
+        table.sort(self.availablePlayermodels)
+        PrintTable(self.availablePlayermodels)
+
+        self:_UpdateAvailableModels(self.pnlSearchBar:GetValue())
+    end)
+end
+
+---
+---@param filter? string
+function ModelSelectorPanel_TTT2PMS:_UpdateAvailableModels(filter)
+    self.pnlIconLayout:Clear()
+
+    local filterParts = string.Split(filter or "", " ")
+
+    PrintTable(filterParts)
+
+    local function InFilter(name)
+        if not filter or filter == "" then
+            return true
+        end
+
+        for _, sstr in pairs(filterParts) do
+            if not string.match(name:lower(), string.PatternSafe(sstr:lower())) then
+                return false
+            end
+        end
+
+        return true
+    end
+
+    for i = 1, #self.availablePlayermodels do
+        local mdlName = self.availablePlayermodels[i]
+
+        if InFilter(mdlName) then
+            local icon = self.pnlIconLayout:Add("SpawnIcon")
+            icon:SetSize(64, 64)
+            icon:SetModel(player_manager.TranslatePlayerModel(mdlName))
+            --icon:SetTooltipPanelOverride("DTooltipTTT2")
+            icon:SetTooltip(mdlName)
+
+            icon.DoClick = function()
+                self.plymodel = {
+                    model = mdlName,
+                    colorMode = self.plymodel.colorMode,
+                    color = self.plymodel.color,
+                    skin = { value = 0, random = false },
+                    bodygroups = {},
+                }
+                self.modelDirty = true
+                self:InvalidateLayout(false)
+                self.pnlModelPos:DefaultPos()
+            end
+        end
+    end
+
+    self.pnlIconLayout:Layout()
+    self.pnlIconLayout:GetParent():InvalidateLayout(true)
 end
 
 ---@class DTextEntryTTT2 : DTextEntry, DPanelTTT2
@@ -311,7 +392,7 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
 
                 local bgrp = self.plymodel.bodygroups[i] or { random = false, value = 0 }
                 self.plymodel.bodygroups[i] = bgrp
-                bgrp.random = tobool(bgrp or false)
+                bgrp.random = tobool(bgrp.random or false)
                 bgrp.value = tonumber(bgrp.value) or 0
 
                 local wang = self:_MakeWangForBodygroup(
@@ -327,8 +408,15 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
 
         self.pnlFormBodygroups:InvalidateLayout(true)
         self.pnlFormBodygroups:SetVisible(visibleRowCt ~= 0)
+
+        PrintTable(self.plymodel)
+
+        -- we need to do this because we might have just initializized bodygroups
+        self.pnlModel:UpdateBodygroups()
     end
     self.modelDirty = false
+
+    self.pnlIconLayout:SetWide(self:GetWide())
 
     self.btnResetMdlPos:SetPos(
         self.pnlModel:GetWide() - self.btnResetMdlPos:GetWide(),

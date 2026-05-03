@@ -43,3 +43,49 @@ end
 function ttt2pms.util.Col2Vec(col)
     return Vector(col.r / 255.0, col.g / 255.0, col.b / 255.0)
 end
+
+local plymodelsPending = {}
+
+---Gets the serverside list of all selected models, playermodels.GetSelectedModels().
+---On @realm client, this is asynchronous and coalesced (i.e. only request to the server is
+---in-flight at a time).
+---On @realm server, this is synchronous, and immediately calls the callback with the result.
+---@param callback fun(result: table<string>)
+function ttt2pms.util.GetSelectablePlayermodels(callback)
+    if SERVER then
+        local models = playermodels.GetSelectedModels()
+        callback(models)
+    end
+    if CLIENT then
+        local alreadyRequested = #plymodelsPending > 0
+
+        plymodelsPending[#plymodelsPending + 1] = callback
+
+        if not alreadyRequested then
+            net.Start("ttt2pms_util_GetSelectablePlayermodels")
+            net.SendToServer()
+        end
+    end
+end
+
+if SERVER then
+    util.AddNetworkString("ttt2pms_util_GetSelectablePlayermodels")
+    util.AddNetworkString("ttt2pms_util_GetSelectablePlayermodels_reply")
+
+    net.Receive("ttt2pms_util_GetSelectablePlayermodels", function(_, ply)
+        ttt2pms.util.GetSelectablePlayermodels(function(values)
+            net.SendStream("ttt2pms_util_GetSelectablePlayermodels_reply", values, ply)
+        end)
+    end)
+end
+
+if CLIENT then
+    hook.Add("Initialize", "TTT2PMS_Util_networking", function()
+        net.ReceiveStream("ttt2pms_util_GetSelectablePlayermodels_reply", function(tbl)
+            for i = 1, #plymodelsPending do
+                ProtectedCall(plymodelsPending[i], tbl)
+            end
+            plymodelsPending = {}
+        end)
+    end)
+end

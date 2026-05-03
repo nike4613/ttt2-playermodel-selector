@@ -19,3 +19,5 @@ L.ttt2pms_select_model_color_mode_opt_user = "My user color"
 
 L.ttt2pms_select_model_bodygroups_header = "Bodygroups"
 L.ttt2pms_select_model_bodygroup_skin_label = "Skin"
+
+L.ttt2pms_select_model_search = "Search models..."

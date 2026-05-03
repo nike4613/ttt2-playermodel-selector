@@ -33,11 +33,9 @@ hook.Add("Initialize", "TTT2PMS_Database", function()
         globalColor = { typ = "color" },
         defaultColorMode = { typ = "number", default = 0 },
 
-        usePrimaryModel = { typ = "boolean", default = false },
         usePriorityModels = { typ = "boolean", default = false },
         useRandomModels = { typ = "boolean", default = false },
 
-        primaryModel_pon = { typ = "string", default = ponEmptyTbl },
         priorityModels_pon = { typ = "string", default = ponEmptyTbl },
         randomModels_pon = { typ = "string", default = ponEmptyTbl },
     })
@@ -48,10 +46,8 @@ end)
 ---@field name string the SteamID64 of the player this is for
 ---@field globalColor Color
 ---@field defaultColorMode PLAYERMODEL_COLOR_MODE
----@field usePrimaryModel boolean
 ---@field usePriorityModels boolean
 ---@field useRandomModels boolean
----@field primaryModel_pon string
 ---@field priorityModels_pon string
 ---@field randomModels_pon string
 
@@ -341,10 +337,8 @@ local function DecodePlayerOrm(orm)
     return {
         globalColor = orm.globalColor,
         defaultColorMode = orm.defaultColorMode,
-        usePrimaryModel = orm.usePrimaryModel,
         usePriorityModels = orm.usePriorityModels,
         useRandomModels = orm.useRandomModels,
-        primaryModel = ponDecodeMaybeNil(orm.primaryModel_pon),
         priorityModels = pon.decode(orm.priorityModels_pon),
         randomModels = pon.decode(orm.randomModels_pon),
     }
@@ -356,10 +350,8 @@ local function EncodePlayerOrm(opts)
     return {
         globalColor = opts.globalColor,
         defaultColorMode = opts.defaultColorMode,
-        usePrimaryModel = opts.usePrimaryModel,
         usePriorityModels = opts.usePriorityModels,
         useRandomModels = opts.useRandomModels,
-        primaryModel_pon = pon.encode(opts.primaryModel or {}),
         priorityModels_pon = pon.encode(opts.priorityModels),
         randomModels_pon = pon.encode(opts.randomModels),
     }
@@ -388,8 +380,6 @@ function ttt2pms.db.GetOptionsForPlayer(ply)
         resultModel = {
             globalColor = COLOR_WHITE,
             defaultColorMode = PLAYERMODEL_COLOR_MODE.SERVER,
-            usePrimaryModel = false,
-            primaryModel = nil,
             usePriorityModels = false,
             priorityModels = {},
             useRandomModels = false,
