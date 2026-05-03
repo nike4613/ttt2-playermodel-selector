@@ -21,6 +21,8 @@ ttt2pms.cl = ttt2pms.cl or {}
 ---
 local ModelSelectorPanel_TTT2PMS = {}
 
+local materialReset = Material("vgui/ttt/vskin/icon_reset")
+
 function ModelSelectorPanel_TTT2PMS:Init()
     self.serverColor = COLOR_WHITE
     self.modelDirty = false
@@ -52,7 +54,6 @@ function ModelSelectorPanel_TTT2PMS:Init()
         end,
     }
     mdlDrag:DefaultPos()
-    self.mdlPos = mdlDrag
 
     function modelDisplay:DragMousePress(btn)
         mdlDrag.px, mdlDrag.py = input.GetCursorPos()
@@ -109,6 +110,16 @@ function ModelSelectorPanel_TTT2PMS:Init()
         ent:SetAngles(mdlDrag.Angles)
         ent:SetPos(mdlDrag.Pos)
     end
+
+    -- add a reset button over the model panel in the bottom right
+    local btnResetMdlPos = vgui.Create("DButtonTTT2", upper)
+    btnResetMdlPos:SetText("ttt2pms_select_model_reset_model")
+    btnResetMdlPos:SetIcon(materialReset, true, 16)
+    btnResetMdlPos:SetSize(96, 32)
+    btnResetMdlPos.DoClick = function()
+        mdlDrag:DefaultPos()
+    end
+    self.btnResetMdlPos = btnResetMdlPos
 
     local bodygroupsContent = upper:Add("DContentPanelTTT2")
     bodygroupsContent:Dock(FILL)
@@ -315,6 +326,10 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
     end
     self.modelDirty = false
 
+    self.btnResetMdlPos:SetPos(
+        self.pnlModel:GetWide() - self.btnResetMdlPos:GetWide(),
+        self.pnlModel:GetTall() - self.btnResetMdlPos:GetTall()
+    )
     self:SizeToChildren(false, true)
 end
 
