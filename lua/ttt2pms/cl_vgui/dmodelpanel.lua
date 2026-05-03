@@ -8,7 +8,7 @@
 ---@field private colAmbientLight Color
 ---@field private colColor Color
 ---@field private DirectionalLight table<Color>
----@field private LayoutEntity fun(self:DModelPanel_TTT2PMS, ent:Entity)
+---@field LayoutEntity fun(self:DModelPanel_TTT2PMS, ent:Entity)
 ---
 ---@field GetPlayerColor fun(self:DModelPanel_TTT2PMS):Color
 ---@field SetPlayerColor fun(self:DModelPanel_TTT2PMS, col:Color)

@@ -37,6 +37,78 @@ function ModelSelectorPanel_TTT2PMS:Init()
     self.pnlModel = modelDisplay
     modelDisplay:SetWide(512 * 2 / 3)
     modelDisplay:Dock(LEFT)
+    modelDisplay:SetAnimated(true)
+    modelDisplay:SetCamPos(Vector(0, 0, 0))
+    modelDisplay:SetFOV(36)
+    modelDisplay:SetAmbientLight(Vector(-64, -64, -64))
+    modelDisplay:SetLookAt(Vector(-100, 0, -22))
+    modelDisplay:SetDirectionalLight(BOX_RIGHT, Color(255, 160, 80, 255))
+    modelDisplay:SetDirectionalLight(BOX_LEFT, Color(255, 160, 80, 255))
+
+    local mdlDrag = {
+        DefaultPos = function(slf)
+            slf.Angles = Angle(0, 0, 0)
+            slf.Pos = Vector(-100, 0, -61)
+        end,
+    }
+    mdlDrag:DefaultPos()
+    self.mdlPos = mdlDrag
+
+    function modelDisplay:DragMousePress(btn)
+        mdlDrag.px, mdlDrag.py = input.GetCursorPos()
+        mdlDrag.pressed = btn
+    end
+    function modelDisplay:DragMouseRelease(btn)
+        mdlDrag.pressed = false
+    end
+    function modelDisplay:OnMouseWheeled(delta)
+        mdlDrag.wheel = delta * -10
+        mdlDrag.wheeled = true
+    end
+
+    function modelDisplay:LayoutEntity(ent)
+        -- this logic is in the base LayoutEntity
+        if self.bAnimated then
+            self:RunAnimation()
+        end
+
+        if mdlDrag.pressed == MOUSE_LEFT then
+            local mx, my = input.GetCursorPos()
+            mdlDrag.Angles = mdlDrag.Angles - Angle(0, (mdlDrag.px or mx) - mx, 0)
+            mdlDrag.px, mdlDrag.py = input.GetCursorPos()
+        end
+        if mdlDrag.pressed == MOUSE_RIGHT then
+            local mx, my = input.GetCursorPos()
+            mdlDrag.Angles = mdlDrag.Angles
+                - Angle(
+                    (mdlDrag.py * 0.5 or my * 0.5) - my * 0.5,
+                    0,
+                    (mdlDrag.px * -0.5 or mx * -0.5) - mx * -0.5
+                )
+
+            mdlDrag.px, mdlDrag.py = input.GetCursorPos()
+        end
+
+        if mdlDrag.pressed == MOUSE_MIDDLE then
+            local mx, my = input.GetCursorPos()
+            mdlDrag.Pos = mdlDrag.Pos
+                - Vector(
+                    0,
+                    (mdlDrag.px * 0.5 or mx * 0.5) - mx * 0.5,
+                    (mdlDrag.py * -0.5 or my * -0.5) - my * -0.5
+                )
+
+            mdlDrag.px, mdlDrag.py = input.GetCursorPos()
+        end
+
+        if mdlDrag.wheeled then
+            mdlDrag.wheeled = false
+            mdlDrag.Pos = mdlDrag.Pos - Vector(mdlDrag.wheel, 0, 0)
+        end
+
+        ent:SetAngles(mdlDrag.Angles)
+        ent:SetPos(mdlDrag.Pos)
+    end
 
     local bodygroupsContent = upper:Add("DContentPanelTTT2")
     bodygroupsContent:Dock(FILL)
