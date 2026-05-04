@@ -14,14 +14,20 @@
 
 local ponEmptyTbl = "[}"
 
-local modelBodygroupOptionsTblName = "ttt2pms_sv_model_distinct_bodygroups"
-sql.CreateSqlTable(modelBodygroupOptionsTblName, {
-    bodygroups_pon = { typ = "string", default = ponEmptyTbl },
+local modelOptionsTblName = "ttt2pms_sv_model_options"
+sql.CreateSqlTable(modelOptionsTblName, {
+    skin_allowed_pon = { typ = "string", default = ponEmptyTbl },
+    skin_distinct_pon = { typ = "string", default = ponEmptyTbl },
+    bodygroups_allowed_pon = { typ = "string", default = ponEmptyTbl },
+    bodygroups_distinct_pon = { typ = "string", default = ponEmptyTbl },
 })
 ---@type ORM<ModelBodygroupOptionsMdl>
-local modelBodygroupOptionsOrm = orm.Make(modelBodygroupOptionsTblName)
+local modelOptionsOrm = orm.Make(modelOptionsTblName)
 ---@class ModelBodygroupOptionsMdl: ORMObject
----@field bodygroups_pon string the @{pon} encoded bodygroups configuration
+---@field skin_allowed_pon string
+---@field skin_distinct_pon string
+---@field bodygroups_allowed_pon string
+---@field bodygroups_distinct_pon string
 
 local playerSettingsTblName = "ttt2pms_cl_settings"
 sql.CreateSqlTable(playerSettingsTblName, {
@@ -49,12 +55,24 @@ local playerSettingsOrm = orm.Make(playerSettingsTblName)
 ttt2pms = ttt2pms or {}
 ttt2pms.db = ttt2pms.db or {}
 
+local function ponDecodeMaybeNil(str)
+    local res = pon.decode(str)
+    if type(res) == "table" and next(res) == nil then
+        return nil
+    else
+        return res
+    end
+end
+
 ---@param orm ModelBodygroupOptionsMdl
 ---@return PlayermodelServer
 local function DecodeBodygroupsOrm(orm)
     return {
         model = orm.name,
-        bodygroups = pon.decode(orm.bodygroups_pon),
+        skinAllowed = ponDecodeMaybeNil(orm.skin_allowed_pon),
+        skinDistinct = ponDecodeMaybeNil(orm.skin_distinct_pon),
+        bodygroupsAllowed = pon.decode(orm.bodygroups_allowed_pon),
+        bodygroupsDistinct = pon.decode(orm.bodygroups_distinct_pon),
     }
 end
 
@@ -63,17 +81,22 @@ end
 local function EncodeBodygroupsOrm(opts)
     return {
         name = opts.model,
-        bodygroups_pon = pon.encode(opts.bodygroups),
+        skin_allowed_pon = opts.skinAllowed and pon.encode(opts.skinAllowed) or ponEmptyTbl,
+        skin_distinct_pon = opts.skinDistinct and pon.encode(opts.skinDistinct) or ponEmptyTbl,
+        bodygroups_allowed_pon = opts.bodygroupsAllowed and pon.encode(opts.bodygroupsAllowed)
+            or ponEmptyTbl,
+        bodygroups_distinct_pon = opts.bodygroupsDistinct and pon.encode(opts.bodygroupsDistinct)
+            or ponEmptyTbl,
     }
 end
 
-local bodygroupDistinctModelsTbl
+local bodygroupModelsTbl
 
 ---@return table<string, PlayermodelServer>
-function ttt2pms.db.GetBodygroupDistinctModels()
-    if not bodygroupDistinctModelsTbl then
+function ttt2pms.db.GetModels()
+    if not bodygroupModelsTbl then
         ---@type table<ModelBodygroupOptionsMdl>
-        local models = modelBodygroupOptionsOrm:All()
+        local models = modelOptionsOrm:All()
 
         local result = {}
         for i = 1, #models do
@@ -81,46 +104,46 @@ function ttt2pms.db.GetBodygroupDistinctModels()
             result[orm.name] = DecodeBodygroupsOrm(orm)
         end
 
-        bodygroupDistinctModelsTbl = result
+        bodygroupModelsTbl = result
     end
 
-    return bodygroupDistinctModelsTbl
+    return bodygroupModelsTbl
 end
 
 ---@param opts PlayermodelServer
-function ttt2pms.db.SetModelDistinctOptions(opts)
-    local orm = modelBodygroupOptionsOrm:Find(opts.model)
+function ttt2pms.db.SetModelOptions(opts)
+    local orm = modelOptionsOrm:Find(opts.model)
     if not orm then
-        orm = modelBodygroupOptionsOrm:New(EncodeBodygroupsOrm(opts))
+        orm = modelOptionsOrm:New(EncodeBodygroupsOrm(opts))
     else
         table.Merge(orm, EncodeBodygroupsOrm(opts))
     end
     orm:Save()
 
-    if bodygroupDistinctModelsTbl then
-        bodygroupDistinctModelsTbl[opts.model] = table.Copy(opts)
+    if bodygroupModelsTbl then
+        bodygroupModelsTbl[opts.model] = table.Copy(opts)
     end
 end
 
 ---@param model string
 ---@return boolean
-function ttt2pms.db.DeleteModelDistinctOptions(model)
-    local orm = modelBodygroupOptionsOrm:Find(model)
+function ttt2pms.db.DeleteModelOptions(model)
+    local orm = modelOptionsOrm:Find(model)
     local success = false
     if orm then
         success = orm:Delete()
     end
 
-    if bodygroupDistinctModelsTbl then
-        bodygroupDistinctModelsTbl[model] = nil
+    if bodygroupModelsTbl then
+        bodygroupModelsTbl[model] = nil
     end
 
     return success
 end
 
-function ttt2pms.db.SaveModelDistinctOptions()
+function ttt2pms.db.SaveModelOptions()
     -- we want to save ALL changes in the distinct table.
-    if not bodygroupDistinctModelsTbl then
+    if not bodygroupModelsTbl then
         -- if this hasn't been set, then noone called GetBodygroupDistinctModels(), and thus
         -- couldn't have changed it. So, nothing to be done.
         return
@@ -130,20 +153,19 @@ function ttt2pms.db.SaveModelDistinctOptions()
     -- appropriately.
 
     local ormTbl = {}
-    for _, v in ipairs(modelBodygroupOptionsOrm:All()) do
+    for _, v in ipairs(modelOptionsOrm:All()) do
         ormTbl[v.name] = v
     end
 
     -- before syncing, we want to make sure the keys and values of the distinct table are synced
-    local tbl = table.Copy(bodygroupDistinctModelsTbl)
+    local tbl = table.Copy(bodygroupModelsTbl)
     for k, v in pairs(tbl) do
         if k ~= v.model then
-            bodygroupDistinctModelsTbl[v.model] =
-                table.Merge(bodygroupDistinctModelsTbl[v.model] or {}, v)
-            bodygroupDistinctModelsTbl[k] = nil
+            bodygroupModelsTbl[v.model] = table.Merge(bodygroupModelsTbl[v.model] or {}, v, true)
+            bodygroupModelsTbl[k] = nil
         end
     end
-    tbl = bodygroupDistinctModelsTbl
+    tbl = bodygroupModelsTbl
 
     -- now we're ready to actually sync
     for k, v in pairs(tbl) do
@@ -155,7 +177,7 @@ function ttt2pms.db.SaveModelDistinctOptions()
             ormTbl[k] = nil
         else
             -- we do NOT have an orm for this model, create one
-            modelBodygroupOptionsOrm:New(EncodeBodygroupsOrm(v)):Save()
+            modelOptionsOrm:New(EncodeBodygroupsOrm(v)):Save()
         end
     end
 
@@ -165,23 +187,173 @@ function ttt2pms.db.SaveModelDistinctOptions()
     end
 end
 
-function ttt2pms.db.ClearModelDistinctOptions()
-    print("TTT2PMS: Deleting all model distinct bodygroups options")
-    sql.Query("DELETE FROM " .. sql.SQLStr(modelBodygroupOptionsTblName) .. ";")
-    bodygroupDistinctModelsTbl = {}
+---@param model string
+---@param field "distinct"|"allowed"|nil
+---@return boolean
+function ttt2pms.db.ClearModelSettings(model, field)
+    local existing = ttt2pms.db.GetModels()[model]
+    if not existing then
+        return false
+    end
+
+    local pm = table.Copy(existing)
+    if field == "allowed" then
+        pm.skinAllowed = nil
+        pm.bodygroupsAllowed = {}
+    elseif field == "distinct" then
+        pm.skinDistinct = nil
+        pm.bodygroupsDistinct = {}
+    elseif field == nil then
+        pm.skinAllowed = nil
+        pm.bodygroupsAllowed = {}
+        pm.skinDistinct = nil
+        pm.bodygroupsDistinct = {}
+    else
+        error("invalid field " .. field)
+    end
+
+    ttt2pms.db.SetModelOptions(pm)
+    return true
 end
 
-ttt2pms.__ServerOpts_getters = table.Merge(ttt2pms.__ServerOpts_getters, {
-    modelsWithAllowedDistinctBodygroups = function(_)
-        return ttt2pms.db.GetBodygroupDistinctModels()
-    end,
-})
+---@param field "distinct"|"allowed"|nil
+function ttt2pms.db.ClearSettings(field)
+    ErrorNoHaltWithStack("TTT2PMS: Deleting all model options " .. field)
 
-ttt2pms.__ServerOpts_setters = table.Merge(ttt2pms.__ServerOpts_setters, {
-    modelsWithAllowedDistinctBodygroups = function()
-        error("not allowed to set modelsWithAllowedDistinctBodygroups", 5)
-    end,
-})
+    local skinCol, bgCol
+
+    if field == nil then
+        sql.Query(string.format("DELETE FROM %s", sql.SQLStr(modelOptionsTblName)))
+    elseif field == "distinct" then
+        skinCol, bgCol = "skin_distinct_pon", "bodygroups_distinct_pon"
+    elseif field == "allowed" then
+        skinCol, bgCol = "skin_allowed_pon", "bodygroups_allowed_pon"
+    else
+        error("invalid field " .. field)
+    end
+
+    if skinCol then
+        sql.Query(
+            string.format(
+                "UPDATE %s SET %s = %s, %s = %s",
+                sql.SQLStr(modelOptionsTblName),
+                skinCol,
+                sql.SQLStr(ponEmptyTbl),
+                bgCol,
+                sql.SQLStr(ponEmptyTbl)
+            )
+        )
+    end
+
+    bodygroupModelsTbl = nil
+end
+
+---
+---@param args table<string>
+---@return table<number, BodygroupServer>
+---@return BodygroupServer|nil
+local function parseBodygroupArgs(args)
+    ---@type table<number,BodygroupServer>
+    local bodygroupSettings = {}
+    ---@type nil|BodygroupServer
+    local skinSettings = nil
+
+    local i = 2
+    while i <= #args do
+        local bodygroupStr = args[i]
+        local bodygroup = tonumber(bodygroupStr)
+        i = i + 1
+        if bodygroup == nil and bodygroupStr ~= "skin" then
+            error("bodygroup specifier '" .. bodygroupStr .. "' must be integer or 'skin'")
+        end
+
+        if i > #args then
+            error("missing mode of bodygroup '" .. tostring(bodygroup) .. "'")
+        end
+        local mode = args[i]
+        i = i + 1
+        if mode ~= "pos" and mode ~= "neg" then
+            error(
+                "mode of bodygroup "
+                    .. tostring(bodygroup)
+                    .. " must be one of 'pos' or 'neg', not '"
+                    .. mode
+                    .. "'"
+            )
+        end
+
+        if i > #args then
+            error("missing values of bodygroup '" .. tostring(bodygroup) .. "'")
+        end
+        local valuesStr = args[i]
+        i = i + 1
+
+        local valuesList = string.Split(valuesStr, ",")
+        local values = {}
+        for _, v in ipairs(valuesList) do
+            local num = tonumber(v)
+            if num == nil then
+                error("value '" .. v .. "' must be a number")
+            end
+            values[#values + 1] = num
+        end
+
+        if bodygroup then
+            bodygroupSettings[bodygroup] = { mode = mode, values = values }
+        else
+            skinSettings = { mode = mode, values = values }
+        end
+    end
+    return bodygroupSettings, skinSettings
+end
+
+local function setBodygroupAutocomplete(cmd, argStr, args)
+    local count = #args
+    if count == 0 then
+        local models = ttt2pms.db.GetModels()
+        local options = {}
+        for k, _ in pairs(models) do
+            options[#options + 1] = argStr .. " \"" .. k .. "\""
+        end
+        return options
+    end
+
+    local rem = count % 3
+    if rem == 1 then
+        return { argStr .. " \"skin\"" }
+    elseif rem == 2 then
+        return { argStr .. " \"pos\"", argStr .. " \"neg\"" }
+    end
+    return {}
+end
+
+local function updateModelSettings(model, bodygroupSettings, skinSettings, isAllowed)
+    local existing = ttt2pms.db.GetModels()[model]
+    local pm = existing and table.Copy(existing)
+        or {
+            model = model,
+            skinAllowed = nil,
+            skinDistinct = nil,
+            bodygroupsAllowed = {},
+            bodygroupsDistinct = {},
+        }
+
+    if field == "allowed" then
+        if existing then
+            pm.bodygroupsAllowed = table.Copy(existing.bodygroupsAllowed)
+        end
+        table.Merge(pm.bodygroupsAllowed, bodygroupSettings, true)
+        pm.skinAllowed = skinSettings
+    else
+        if existing then
+            pm.bodygroupsDistinct = table.Copy(existing.bodygroupsDistinct)
+        end
+        table.Merge(pm.bodygroupsDistinct, bodygroupSettings, true)
+        pm.skinDistinct = skinSettings
+    end
+
+    ttt2pms.db.SetModelOptions(pm)
+end
 
 concommand.Add("ttt2_pms_distinct_bodygroups_clear", function(ply, cmd, args)
     -- execute
@@ -192,7 +364,7 @@ concommand.Add("ttt2_pms_distinct_bodygroups_clear", function(ply, cmd, args)
     if #args > 0 then
         -- a list of models were specified
         for _, v in ipairs(args) do
-            if ttt2pms.db.DeleteModelDistinctOptions(v) then
+            if ttt2pms.db.ClearModelSettings(v, "distinct") then
                 print("Deleted model bodygroup options for '" .. v .. "'")
             else
                 print(
@@ -204,11 +376,11 @@ concommand.Add("ttt2_pms_distinct_bodygroups_clear", function(ply, cmd, args)
         end
     else
         -- nothing was specified, delete everything
-        ttt2pms.db.ClearModelDistinctOptions()
+        ttt2pms.db.ClearSettings("distinct")
     end
 end, function(cmd, argStr, args)
     -- autocomplete
-    local models = ttt2pms.db.GetBodygroupDistinctModels()
+    local models = ttt2pms.db.GetModels()
 
     local passed = {}
     for _, v in ipairs(args) do
@@ -221,111 +393,81 @@ end, function(cmd, argStr, args)
     end
 
     for k, _ in pairs(models) do
-        if passed[k] then
+        if not passed[k] then
             -- don't print any options that are already passed
-            continue
+            options[#options + 1] = argStr .. " \"" .. k .. "\""
         end
-
-        options[#options + 1] = argStr .. " \"" .. k .. "\""
     end
 
     return options
 end, "Clears the configured \"distinct\" bodygroups options (optionally for a specific model).", {})
 
-concommand.Add(
-    "ttt2_pms_distinct_bodygroups_set",
-    function(ply, cmd, args)
-        -- execute
-        if not ply:IsSuperAdmin() then
-            return
-        end
-
-        if #args < 1 then
-            error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
-        end
-
-        local model = args[1]
-        ---@type table<number,BodygroupServer>
-        local bodygroupSettings = {}
-        ---@type nil|BodygroupServer
-        local skinSettings
-
-        local i = 2
-        while i <= #args do
-            local bodygroupStr = args[i]
-            local bodygroup = tonumber(bodygroupStr)
-            i = i + 1
-            if bodygroup == nil and bodygroupStr ~= "skin" then
-                error("bodygroup specifier '" .. bodygroupStr .. "' must be integer or 'skin'")
-            end
-
-            if i > #args then
-                error("missing mode of bodygroup '" .. tostring(bodygroup) .. "'")
-            end
-
-            local mode = args[i]
-            i = i + 1
-
-            if mode ~= "pos" and mode ~= "neg" then
-                error(
-                    "mode of bodygroup "
-                        .. tostring(bodygroup)
-                        .. " must be one of 'pos' or 'neg', not '"
-                        .. mode
-                        .. "'"
-                )
-            end
-
-            if i > #args then
-                error("missing values of bodygroup '" .. tostring(bodygroup) .. "'")
-            end
-
-            local valuesStr = args[i]
-            i = i + 1
-
-            local valuesList = string.Split(valuesStr, ",")
-            ---@type table<number>
-            local values = {}
-
-            for _, v in ipairs(valuesList) do
-                local num = tonumber(v)
-                if num == nil then
-                    error("value '" .. v .. "' must be a number")
-                end
-                values[#values + 1] = num
-            end
-
-            if bodygroup then
-                bodygroupSettings[bodygroup] = { mode = mode, values = values }
-            else
-                skinSettings = { mode = mode, values = values }
-            end
-        end
-
-        ---@type PlayermodelServer
-        local pm = { model = model, bodygroups = bodygroupSettings }
-
-        if skinSettings then
-            pm.skin = skinSettings
-        end
-
-        pm = table.Merge(ttt2pms.db.GetBodygroupDistinctModels()[pm.model] or {}, pm)
-        ttt2pms.db.SetModelDistinctOptions(pm)
-    end,
-    --[[ ya fuck doing autocomplete for this lmao ]]
-    nil,
-    "Sets distinct bodygroup settings for a model.",
-    {}
-)
-
-local function ponDecodeMaybeNil(str)
-    local res = pon.decode(str)
-    if type(res) == "table" and #table == 0 then
-        return nil
-    else
-        return res
+concommand.Add("ttt2_pms_distinct_bodygroups_set", function(ply, cmd, args)
+    -- execute
+    if not ply:IsSuperAdmin() then
+        return
     end
-end
+
+    if #args < 1 then
+        error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
+    end
+
+    local bg, skin = parseBodygroupArgs(args)
+    updateModelSettings(args[1], bg, skin, false)
+end, setBodygroupAutocomplete, "Sets distinct bodygroup settings for a model.", {})
+
+concommand.Add("ttt2_pms_allowed_bodygroups_set", function(ply, cmd, args)
+    -- execure
+    if not ply:IsSuperAdmin() then
+        return
+    end
+
+    if #args < 1 then
+        error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
+    end
+
+    local bg, skin = parseBodygroupArgs(args)
+    updateModelSettings(args[1], bg, skin, true)
+end, setBodygroupAutocomplete, "Sets allowed bodygroup settings for a model.", {})
+
+concommand.Add("ttt2_pms_allowed_bodygroups_clear", function(ply, cmd, args)
+    -- execute
+    if not ply:IsSuperAdmin() then
+        return
+    end
+    if #args > 0 then
+        for _, v in ipairs(args) do
+            if ttt2pms.db.ClearModelSettings(v, "allowed") then
+                print("Cleared allowed bodygroup options for '" .. v .. "'")
+            else
+                print("No allowed bodygroup options configured for model '" .. v .. "'")
+            end
+        end
+    else
+        ttt2pms.db.ClearSettings("allowed")
+    end
+end, function(cmd, argStr, args)
+    -- autocomplete
+    local models = ttt2pms.db.GetModels()
+    local passed = {}
+
+    for _, v in ipairs(args) do
+        passed[v] = true
+    end
+
+    local options = {}
+    if #args == 0 then
+        options[#options + 1] = cmd
+    end
+
+    for k, _ in pairs(models) do
+        if not passed[k] then
+            options[#options + 1] = argStr .. " \"" .. k .. "\""
+        end
+    end
+
+    return options
+end, "Clears the configured \"allowed\" bodygroups options (optionally for a specific model).", {})
 
 ---@param orm PlayerSettingsOrm
 ---@return PlayermodelSettings

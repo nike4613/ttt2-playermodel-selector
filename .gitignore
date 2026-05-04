@@ -57,3 +57,4 @@ addon.json
 *.gma
 .luarc.json
 Session.vim
+.aider*

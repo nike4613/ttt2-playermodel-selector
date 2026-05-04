@@ -65,32 +65,40 @@ PLAYERMODEL_COLOR_MODE = {
 ---@field requireUniqueModels   boolean     Whether to enforce unique playermodels among all
 ---         players. This being set is the only case where most of the player's options do anything.
 ---         `ttt2_pms_require_unique_models `ttt2pms.cv.requireUniqueModels`
----@realm server
----@field modelsWithAllowedDistinctBodygroups   table<string,PlayermodelServer> A set of
----         playermodels (and their bodygroups) for which instances are considered to be unique if
----         the bodygroups are different. This being significant enough to be reasonable is rare
----         enough that there is no method to enable this across all playermodels, as there would be
----         no point.
----         `ttt2_pms_distinct_bodygroups_clear [<mdl>]`
----         `ttt2_pms_distinct_bodygroups_set <mdl> (<bodygroup> <mode> <comma separated values>)+`
----         (note: `ttt2_pms_distinct_bodygroups_set` is ADDITIVE; it does not replace. If
----         <bodygroup> is "skin", applies to the skin instead.)
+
+---A mapping of some value for each playermodel
+---@class PerPlayermodel<T> : { [string]: T? }
 
 ---@realm server
 ---@class PlayermodelServer
----@field model         string                          The model name
----@field skin          BodygroupServer|nil             The distinct options for the skin
----@field bodygroups    table<number,BodygroupServer>   The set of bodygroups which have options
----         configured. Any bodygroups which are unconfigured are not considered to be distinct.
+---The name of the model.
+---@field model                 string
+---The set of skin values allowed.
+---@field skinAllowed           BodygroupServer?
+---The set of skin values considered to be distinct.
+---@field skinDistinct          BodygroupServer?
+---The allowed values for each bodygroup. If a bodygroup is not specified, aall values are
+---permitted.
+---@field bodygroupsAllowed     table<number,BodygroupServer>
+---The values for each bodygroup considered to be distinct. If a bodygroup is not specified,
+---all values are considered to be distinct.
+---@field bodygroupsDistinct    table<number,BodygroupServer>
 
 ---@realm server
+---@note When this is used to list distinct values, the following behavior applies:
+--- - When `mode` is "pos", the values in `values` are treated as distinct from each other, and
+---   all values not listed are treated as a final group, distinct from the values in `values`,
+---   but equivalent to each other.
+--- - When `mode` is "neg", the values in `values` are treated as equivalent to each other, and
+---   all values not listed are treated as being distinct from each other and those listed in
+---   `values`.
 ---@class BodygroupServer
----@field mode          "pos"|"neg"     The mode of this bodygroup option. If "pos", then this lists
----         the values which are considered to be distinct. If "neg", then this lists the values which are
----         considered to be NOT distinct (and the remaining values are considered to be distinct).
----         The distinct groupings are: [all values not considered distinct],distinct1,distinct2,etc...
----         Thus, if values 3, 4, and 5 are considered distinct, then the groups are [0,1,2],[3],[4],[5].
----@field values        table<number>   The values associated with this configured bodygroup.
+---The mode of this bodygroup. If "pos", then this lists the positive values, and logically this instance
+---represents exactly the values in `values`. If "neg", then this lists the negative values, and logically
+---this instance represents all values EXCEPT those listed in `values`.
+---@field mode          "pos"|"neg"
+---The values associated with this configured bodygroup.
+---@field values        table<number>
 
 ttt2pms = ttt2pms or {}
 
