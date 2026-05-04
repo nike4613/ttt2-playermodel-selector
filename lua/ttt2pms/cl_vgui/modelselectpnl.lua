@@ -128,6 +128,14 @@ function ModelSelectorPanel_TTT2PMS:Init()
     end
     self.btnResetMdlPos = btnResetMdlPos
 
+    local btnApply = vgui.Create("DButtonTTT2", upper)
+    btnApply:SetText("ttt2pms_select_model_apply")
+    btnApply:SetSize(96, 32)
+    btnApply.DoClick = function()
+        -- TODO:
+    end
+    self.btnApply = btnApply
+
     local bodygroupsContent = upper:Add("DContentPanelTTT2")
     bodygroupsContent:Dock(FILL)
     local bodygroupsScroll = bodygroupsContent:Add("DScrollPanelTTT2")
@@ -418,9 +426,13 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
 
     self.pnlIconLayout:SetWide(self:GetWide())
 
+    local padding = ttt2pms.cl.plyModelRowVPadding
+
+    self.btnApply:SetPos(padding, self.pnlModel:GetTall() - self.btnApply:GetWide() - padding)
+
     self.btnResetMdlPos:SetPos(
-        self.pnlModel:GetWide() - self.btnResetMdlPos:GetWide(),
-        self.pnlModel:GetTall() - self.btnResetMdlPos:GetTall()
+        self.pnlModel:GetWide() - self.btnResetMdlPos:GetWide() - padding,
+        self.pnlModel:GetTall() - self.btnResetMdlPos:GetTall() - padding
     )
     self:SizeToChildren(false, true)
 end

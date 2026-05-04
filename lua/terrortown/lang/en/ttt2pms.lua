@@ -7,6 +7,7 @@ L.submenu_customization_selector = "Player Model Selector"
 
 L.ttt2pms_select_model_title = "Select Player Model"
 L.ttt2pms_select_model_reset_model = "Reset"
+L.ttt2pms_select_model_apply = "Apply"
 
 L.ttt2pms_select_model_color_header = "Player Color"
 
