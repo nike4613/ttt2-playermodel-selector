@@ -7,7 +7,7 @@ if SERVER then
     ---@realm server
     function ttt2pms.GetPlayerSettings(ply)
         if not IsValid(ply) or type(ply) ~= "Player" then
-            error("ttt2pms.GetPlayerSettings() must take a player")
+            error("ttt2pms.GetPlayerSettings() must take a player (got " .. type(ply) .. ")")
         end
 
         return ttt2pms.db.GetOptionsForPlayer(ply)
@@ -35,12 +35,10 @@ if SERVER then
         ttt2pms.SyncPlayerSettings(ply)
     end)
 
-    hook.Remove("Initialize", "TTT2PMS_PlySync")
-    hook.Add("Initialize", "TTT2PMS_PlySync", function()
-        net.ReceiveStream("TTT2PMS_SyncPlayerSettings", function(plySettings, ply)
-            -- client has sent us updated settings for them, store that
-            ttt2pms.db.SaveOptionsForPlayer(ply, plySettings)
-        end)
+    util.AddNetworkString("TTT2PMS_SyncPlayerSettings")
+    net.ReceiveStream("TTT2PMS_SyncPlayerSettings", function(plySettings, ply)
+        -- client has sent us updated settings for them, store that
+        ttt2pms.db.SaveOptionsForPlayer(ply, plySettings)
     end)
 end
 
@@ -72,10 +70,7 @@ if CLIENT then
         ttt2pms.SyncPlayerSettings()
     end
 
-    hook.Remove("Initialize", "TTT2PMS_PlySync")
-    hook.Add("Initialize", "TTT2PMS_PlySync", function()
-        net.ReceiveStream("TTT2PMS_SyncPlayerSettings", function(plySettings)
-            playerSettings = plySettings
-        end)
+    net.ReceiveStream("TTT2PMS_SyncPlayerSettings", function(plySettings)
+        playerSettings = plySettings
     end)
 end

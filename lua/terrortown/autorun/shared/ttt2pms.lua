@@ -1,8 +1,3 @@
-if engine.ActiveGamemode() ~= "terrortown" then
-    error("engine.ActiveGamemode() =" .. engine.ActiveGamemode())
-    return
-end
-
 local function include_cl(filename)
     if CLIENT then
         include(filename)

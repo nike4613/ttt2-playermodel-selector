@@ -1,46 +1,41 @@
 ---@realm server
 
 ---@class ORM<T>
----@field All fun():table<T>|nil
----@field Find fun(name:string):T|nil
----@field New fun(tbl:table):T
----@field Where fun(filters:table):table<T>|nil
+---@field All fun(self):table<T>
+---@field Find fun(self,name:string):T|nil
+---@field New fun(self,tbl:table):T
+---@field Where fun(self,filters:table):table<T>|nil
 
 ---@class ORMObject
----@field Delete fun():boolean
----@field Refresh fun():boolean
----@field Save fun():boolean
+---@field Delete fun(self):boolean
+---@field Refresh fun(self):boolean
+---@field Save fun(self):boolean
 ---@field name string the name of the model
 
 local ponEmptyTbl = "[}"
 
 local modelBodygroupOptionsTblName = "ttt2pms_sv_model_distinct_bodygroups"
+sql.CreateSqlTable(modelBodygroupOptionsTblName, {
+    bodygroups_pon = { typ = "string", default = ponEmptyTbl },
+})
 ---@type ORM<ModelBodygroupOptionsMdl>
-local modelBodygroupOptionsOrm
+local modelBodygroupOptionsOrm = orm.Make(modelBodygroupOptionsTblName)
 ---@class ModelBodygroupOptionsMdl: ORMObject
 ---@field bodygroups_pon string the @{pon} encoded bodygroups configuration
 
 local playerSettingsTblName = "ttt2pms_cl_settings"
+sql.CreateSqlTable(playerSettingsTblName, {
+    globalColor = { typ = "color" },
+    defaultColorMode = { typ = "number", default = 0 },
+
+    usePriorityModels = { typ = "boolean", default = false },
+    useRandomModels = { typ = "boolean", default = false },
+
+    priorityModels_pon = { typ = "string", default = ponEmptyTbl },
+    randomModels_pon = { typ = "string", default = ponEmptyTbl },
+})
 ---@type ORM<PlayerSettingsOrm>
-local playerSettingsOrm
-hook.Add("Initialize", "TTT2PMS_Database", function()
-    sql.CreateSqlTable(modelBodygroupOptionsTblName, {
-        bodygroups_pon = { typ = "string", default = ponEmptyTbl },
-    })
-    modelBodygroupOptionsOrm = orm.Make(modelBodygroupOptionsTblName)
-
-    sql.CreateSqlTable(playerSettingsTblName, {
-        globalColor = { typ = "color" },
-        defaultColorMode = { typ = "number", default = 0 },
-
-        usePriorityModels = { typ = "boolean", default = false },
-        useRandomModels = { typ = "boolean", default = false },
-
-        priorityModels_pon = { typ = "string", default = ponEmptyTbl },
-        randomModels_pon = { typ = "string", default = ponEmptyTbl },
-    })
-    playerSettingsOrm = orm.Make(playerSettingsTblName)
-end)
+local playerSettingsOrm = orm.Make(playerSettingsTblName)
 
 ---@class PlayerSettingsOrm: ORMObject
 ---@field name string the SteamID64 of the player this is for
@@ -171,6 +166,7 @@ function ttt2pms.db.SaveModelDistinctOptions()
 end
 
 function ttt2pms.db.ClearModelDistinctOptions()
+    print("TTT2PMS: Deleting all model distinct bodygroups options")
     sql.Query("DELETE FROM " .. sql.SQLStr(modelBodygroupOptionsTblName) .. ";")
     bodygroupDistinctModelsTbl = {}
 end
@@ -371,7 +367,7 @@ function ttt2pms.db.GetOptionsForPlayer(ply)
 
     local sid = ply:SteamID64()
 
-    ---@type PlayerSettingsOrm
+    ---@type PlayerSettingsOrm?
     local opts = playerSettingsOrm:Find(sid)
     ---@type PlayermodelSettings
     local resultModel

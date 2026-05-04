@@ -1,8 +1,8 @@
-local utilGetChangedColor
-local vskinGetBackgroundColor
+local utilGetChangedColor = util.GetChangedColor
+local vskinGetBackgroundColor = vskin.GetBackgroundColor
 
-local drawRoundedBox
-local drawRoundedBoxEx
+local drawRoundedBox = draw.RoundedBox
+local drawRoundedBoxEx = draw.RoundedBoxEx
 
 local surfaceSetMaterial = surface.SetMaterial
 local surfaceSetDrawColor = surface.SetDrawColor
@@ -58,12 +58,6 @@ local function UpdateDefaultSkin()
     SetFunc("PaintPlyModelDropCell_TTT2PMS", PaintPlyModelDropCell)
     SetFunc("PaintDragParentTrashZone_TTT2PMS", PaintDragParentTrashZone)
     SetFunc("PaintDragList_TTT2PMS", PaintDragList)
-
-    utilGetChangedColor = util.GetChangedColor
-    vskinGetBackgroundColor = vskin.GetBackgroundColor
-
-    drawRoundedBox = draw.RoundedBox
-    drawRoundedBoxEx = draw.RoundedBoxEx
 end
 
 hook.Add("Initialize", "TTT2PMS_UpdateDefaultSkin", UpdateDefaultSkin)

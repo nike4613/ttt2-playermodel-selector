@@ -80,12 +80,10 @@ if SERVER then
 end
 
 if CLIENT then
-    hook.Add("Initialize", "TTT2PMS_Util_networking", function()
-        net.ReceiveStream("ttt2pms_util_GetSelectablePlayermodels_reply", function(tbl)
-            for i = 1, #plymodelsPending do
-                ProtectedCall(plymodelsPending[i], tbl)
-            end
-            plymodelsPending = {}
-        end)
+    net.ReceiveStream("ttt2pms_util_GetSelectablePlayermodels_reply", function(tbl)
+        for i = 1, #plymodelsPending do
+            ProtectedCall(plymodelsPending[i], tbl)
+        end
+        plymodelsPending = {}
     end)
 end

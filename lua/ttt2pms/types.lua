@@ -23,7 +23,7 @@ PLAYERMODEL_COLOR_MODE = {
 ---@field globalColor           Color                   The user global player color
 ---@field defaultColorMode      PLAYERMODEL_COLOR_MODE  The default playermodel color mode
 ---
----@field playermodel?          Playermodel             The playermodel to use when unique playermodels are disabled.
+---@field playermodel?          Playermodel?            The playermodel to use when unique playermodels are disabled.
 ---
 ---@field usePriorityModels     boolean                 Whether to use priority models
 ---@field priorityModels        table<Playermodel>      The priority playermodels.
@@ -73,7 +73,7 @@ PLAYERMODEL_COLOR_MODE = {
 ---         no point.
 ---         `ttt2_pms_distinct_bodygroups_clear [<mdl>]`
 ---         `ttt2_pms_distinct_bodygroups_set <mdl> (<bodygroup> <mode> <comma separated values>)+`
----         (note: `ttt2_pms_set_distinct_bodygroups` is ADDITIVE; it does not replace. If
+---         (note: `ttt2_pms_distinct_bodygroups_set` is ADDITIVE; it does not replace. If
 ---         <bodygroup> is "skin", applies to the skin instead.)
 
 ---@realm server
