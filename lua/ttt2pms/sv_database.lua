@@ -307,26 +307,6 @@ local function ParseBodygroupSetCmdArgs(args)
     return bodygroupSettings, skinSettings
 end
 
-local function BodygroupSetAutocomplete(cmd, argStr, args)
-    local count = #args
-    if count == 0 then
-        local models = ttt2pms.db.GetModels()
-        local options = {}
-        for k, _ in pairs(models) do
-            options[#options + 1] = argStr .. " \"" .. k .. "\""
-        end
-        return options
-    end
-
-    local rem = count % 3
-    if rem == 1 then
-        return { argStr .. " \"skin\"" }
-    elseif rem == 2 then
-        return { argStr .. " \"pos\"", argStr .. " \"neg\"" }
-    end
-    return {}
-end
-
 ---@param field "allowed"|"distinct"
 local function UpdateModelSettingsForCmd(model, bodygroupSettings, skinSettings, field)
     local existing = ttt2pms.db.GetModels()[model]
@@ -356,31 +336,30 @@ local function UpdateModelSettingsForCmd(model, bodygroupSettings, skinSettings,
     ttt2pms.db.SetModelOptions(pm)
 end
 
-concommand.Add("ttt2_pms_distinct_bodygroups_clear", function(ply, cmd, args)
-    -- execute
-    -- don't nered permission check; this is server-only
-    if #args > 0 then
-        -- a list of models were specified
-        for _, v in ipairs(args) do
-            if ttt2pms.db.ClearModelSettings(v, "distinct") then
-                print("Deleted model bodygroup options for '" .. v .. "'")
-            else
-                print(
-                    "No bodygroup options configured for model '"
-                        .. v
-                        .. "' (does the model exist?)"
-                )
-            end
+local function BodygroupSetAutocomplete(cmd, argStr, args)
+    local count = #args
+    if count == 0 then
+        local models = ttt2pms.db.GetModels()
+        local options = {}
+        for k, _ in pairs(models) do
+            options[#options + 1] = argStr .. " \"" .. k .. "\""
         end
-    else
-        -- nothing was specified, delete everything
-        ttt2pms.db.ClearSettings("distinct")
+        return options
     end
-end, function(cmd, argStr, args)
-    -- autocomplete
-    local models = ttt2pms.db.GetModels()
 
+    local rem = count % 3
+    if rem == 1 then
+        return { argStr .. " \"skin\"" }
+    elseif rem == 2 then
+        return { argStr .. " \"pos\"", argStr .. " \"neg\"" }
+    end
+    return {}
+end
+
+local function ClearModelAutocomplete(cmd, argStr, args)
+    local models = ttt2pms.db.GetModels()
     local passed = {}
+
     for _, v in ipairs(args) do
         passed[v] = true
     end
@@ -392,13 +371,62 @@ end, function(cmd, argStr, args)
 
     for k, _ in pairs(models) do
         if not passed[k] then
-            -- don't print any options that are already passed
             options[#options + 1] = argStr .. " \"" .. k .. "\""
         end
     end
 
     return options
-end, "Clears the configured \"distinct\" bodygroups options (optionally for a specific model).", {})
+end
+
+concommand.Add(
+    "ttt2_pms_distinct_bodygroups_clear",
+    function(ply, cmd, args)
+        -- execute
+        -- don't nered permission check; this is server-only
+        if #args > 0 then
+            -- a list of models were specified
+            for _, v in ipairs(args) do
+                if ttt2pms.db.ClearModelSettings(v, "distinct") then
+                    print("Deleted model bodygroup options for '" .. v .. "'")
+                else
+                    print(
+                        "No bodygroup options configured for model '"
+                            .. v
+                            .. "' (does the model exist?)"
+                    )
+                end
+            end
+        else
+            -- nothing was specified, delete everything
+            ttt2pms.db.ClearSettings("distinct")
+        end
+    end,
+    ClearModelAutocomplete,
+    "Clears the configured \"distinct\" bodygroups options (optionally for a specific model).",
+    {}
+)
+
+concommand.Add(
+    "ttt2_pms_allowed_bodygroups_clear",
+    function(ply, cmd, args)
+        -- execute
+        -- don't nered permission check; this is server-only
+        if #args > 0 then
+            for _, v in ipairs(args) do
+                if ttt2pms.db.ClearModelSettings(v, "allowed") then
+                    print("Cleared allowed bodygroup options for '" .. v .. "'")
+                else
+                    print("No allowed bodygroup options configured for model '" .. v .. "'")
+                end
+            end
+        else
+            ttt2pms.db.ClearSettings("allowed")
+        end
+    end,
+    ClearModelAutocomplete,
+    "Clears the configured \"allowed\" bodygroups options (optionally for a specific model).",
+    {}
+)
 
 concommand.Add("ttt2_pms_distinct_bodygroups_set", function(ply, cmd, args)
     -- execute
@@ -421,43 +449,6 @@ concommand.Add("ttt2_pms_allowed_bodygroups_set", function(ply, cmd, args)
     local bg, skin = ParseBodygroupSetCmdArgs(args)
     UpdateModelSettingsForCmd(args[1], bg, skin, "allowed")
 end, BodygroupSetAutocomplete, "Sets allowed bodygroup settings for a model.", {})
-
-concommand.Add("ttt2_pms_allowed_bodygroups_clear", function(ply, cmd, args)
-    -- execute
-    -- don't nered permission check; this is server-only
-    if #args > 0 then
-        for _, v in ipairs(args) do
-            if ttt2pms.db.ClearModelSettings(v, "allowed") then
-                print("Cleared allowed bodygroup options for '" .. v .. "'")
-            else
-                print("No allowed bodygroup options configured for model '" .. v .. "'")
-            end
-        end
-    else
-        ttt2pms.db.ClearSettings("allowed")
-    end
-end, function(cmd, argStr, args)
-    -- autocomplete
-    local models = ttt2pms.db.GetModels()
-    local passed = {}
-
-    for _, v in ipairs(args) do
-        passed[v] = true
-    end
-
-    local options = {}
-    if #args == 0 then
-        options[#options + 1] = cmd
-    end
-
-    for k, _ in pairs(models) do
-        if not passed[k] then
-            options[#options + 1] = argStr .. " \"" .. k .. "\""
-        end
-    end
-
-    return options
-end, "Clears the configured \"allowed\" bodygroups options (optionally for a specific model).", {})
 
 ---@param orm PlayerSettingsOrm
 ---@return PlayermodelSettings
