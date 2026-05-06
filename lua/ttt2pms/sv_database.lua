@@ -336,6 +336,40 @@ local function UpdateModelSettingsForCmd(model, bodygroupSettings, skinSettings,
     ttt2pms.db.SetModelOptions(pm)
 end
 
+local modelDataCache = {}
+local function GetModelData(model)
+    if not model then
+        return nil
+    end
+    if modelDataCache[model] then
+        return modelDataCache[model]
+    end
+
+    local ent = ents.Create("prop_dynamic")
+    if not ent then
+        modelDataCache[model] = nil
+        return nil
+    end
+
+    ent:SetModel(model)
+
+    local bgs = ent:GetBodyGroups()
+    local data = {
+        numBodygroups = #bgs,
+        numSkins = ent:SkinCount(),
+        bgCounts = {},
+    }
+
+    for _, bg in ipairs(bgs) do
+        data.bgCounts[bg.id] = bg.num
+    end
+
+    ent:Remove()
+
+    modelDataCache[model] = data
+    return data
+end
+
 local function BodygroupSetAutocomplete(cmd, argStr, args)
     local count = #args
     if count == 0 then
@@ -349,9 +383,61 @@ local function BodygroupSetAutocomplete(cmd, argStr, args)
 
     local rem = count % 3
     if rem == 1 then
-        return { argStr .. " \"skin\"" }
+        -- suggesting a bodygroup
+        local model = args[1]
+        local data = GetModelData(model)
+        local options = { argStr .. " \"skin\"" }
+        if data then
+            for i = 0, data.numBodygroups - 1 do
+                options[#options + 1] = argStr .. " \"" .. i .. "\""
+            end
+        end
+        return options
     elseif rem == 2 then
+        -- suggesting a type
         return { argStr .. " \"pos\"", argStr .. " \"neg\"" }
+    elseif rem == 0 and count > 0 then
+        -- suggesting a value set
+        local model = args[1]
+        local bgSpec = args[count - 1]
+        local data = GetModelData(model)
+        if not data then
+            return {}
+        end
+
+        local options = {}
+        local possible = {}
+        if bgSpec == "skin" then
+            for i = 0, data.numSkins - 1 do
+                possible[#possible + 1] = i
+            end
+        else
+            local bgId = tonumber(bgSpec)
+            if bgId then
+                local valCount = data.bgCounts[bgId] or 0
+                for i = 0, valCount - 1 do
+                    possible[#possible + 1] = i
+                end
+            end
+        end
+
+        if #possible > 0 then
+            local parts = string.Split(args[#args], ",")
+            local currentPartial = parts[#parts]
+            local entered = {}
+            for i = 1, #parts - 1 do
+                entered[tonumber(parts[i])] = true
+            end
+
+            for _, v in ipairs(possible) do
+                local vs = tostring(v)
+                if not entered[v] and string.StartsWith(vs, currentPartial) then
+                    options[#options + 1] = string.sub(argStr, 1, #argStr - #currentPartial) .. vs
+                end
+            end
+        end
+
+        return options
     end
     return {}
 end
