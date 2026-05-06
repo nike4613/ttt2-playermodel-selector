@@ -1,11 +1,15 @@
 ---@realm server
 
+-- TODO: move these typedefs over into the ttt2.meta file
+
+---@package
 ---@class ORM<T>
 ---@field All fun(self):table<T>
 ---@field Find fun(self,name:string):T|nil
 ---@field New fun(self,tbl:table):T
 ---@field Where fun(self,filters:table):table<T>|nil
 
+---@package
 ---@class ORMObject
 ---@field Delete fun(self):boolean
 ---@field Refresh fun(self):boolean
@@ -23,6 +27,7 @@ sql.CreateSqlTable(modelOptionsTblName, {
 })
 ---@type ORM<ModelBodygroupOptionsMdl>
 local modelOptionsOrm = orm.Make(modelOptionsTblName)
+---@package
 ---@class ModelBodygroupOptionsMdl: ORMObject
 ---@field skin_allowed_pon string
 ---@field skin_distinct_pon string
@@ -43,6 +48,7 @@ sql.CreateSqlTable(playerSettingsTblName, {
 ---@type ORM<PlayerSettingsOrm>
 local playerSettingsOrm = orm.Make(playerSettingsTblName)
 
+---@package
 ---@class PlayerSettingsOrm: ORMObject
 ---@field name string the SteamID64 of the player this is for
 ---@field globalColor Color

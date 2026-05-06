@@ -9,6 +9,7 @@
 ---if nil, SetParent() then SetPos(0, 0)
 ---@field ParentItemToSlot? fun(item: T, slot: Panel, itemPanel: Panel)
 
+---@package
 ---@class DDragList_P_Item<T>
 ---@field id number
 ---@field item T
@@ -31,8 +32,8 @@
 ---@field GetFitWidth fun(self: DDragList_TTT2PMS): boolean
 ---@field SetFitWidth fun(self: DDragList_TTT2PMS, fitWidth: boolean)
 ---
----@field private pnlDragParent? DDragParent_TTT2PMS
----@field private callbacks? DDragList_Callbacks<T>
+---@field package pnlDragParent? DDragParent_TTT2PMS
+---@field package callbacks? DDragList_Callbacks<T>
 ---
 ---@field private dirty boolean
 ---
@@ -375,6 +376,7 @@ local function MoveItemInList(tbl, oldIndex, newIndex, id)
     return newIndex
 end
 
+---@package
 ---@class DDragList_P_Draggable<T> : DDragParent_Draggable
 ---@field it DDragList_P_Item<T>
 ---@field list DDragList_TTT2PMS<T>
@@ -400,6 +402,7 @@ local function Draggable_Move(self, pos)
     end
 end
 
+---@package
 ---@class DDragList_P_MoveItemToSlotAnim : AnimationData
 ---@field rx number
 ---@field ry number

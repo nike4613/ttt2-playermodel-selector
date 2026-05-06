@@ -1,4 +1,5 @@
 ---@class DModelPanel_TTT2PMS : DModelPanel
+---@field bAnimated boolean
 ---@field Entity Entity
 ---@field private aLookAngle Angle
 ---@field private vLookatPos Vector
@@ -14,9 +15,9 @@
 ---@field SetPlayerColor fun(self:DModelPanel_TTT2PMS, col:Color)
 ---
 ---@field private plymodel? Playermodel
----@field private userColorMode PLAYERMODEL_COLOR_MODE
----@field private userColor Color
----@field private serverColor Color
+---@field package userColorMode PLAYERMODEL_COLOR_MODE
+---@field package userColor Color
+---@field package serverColor Color
 ---@field private plyColor Color
 ---@field private updTime number
 ---
@@ -178,7 +179,6 @@ end
 ---@param plymodel Playermodel
 ---@param updateRandom boolean
 local function UpdatePlayerColor(self, plymodel, updateRandom)
-    ---@diagnostic disable-next-line
     local colorMode = plymodel.colorMode or self.userColorMode
 
     ---@type Color?
@@ -190,10 +190,8 @@ local function UpdatePlayerColor(self, plymodel, updateRandom)
             color = ColorRand(false)
         end
     elseif colorMode == PLAYERMODEL_COLOR_MODE.USER_GLOBAL then
-        ---@diagnostic disable-next-line
         color = self.userColor
     elseif colorMode == PLAYERMODEL_COLOR_MODE.SERVER then
-        ---@diagnostic disable-next-line
         color = self.serverColor
     end
 
@@ -207,7 +205,6 @@ end
 ---@param plymodel Playermodel
 ---@param updateRandom boolean
 local function UpdateBodygroups(self, plymodel, updateRandom)
-    ---@diagnostic disable-next-line
     local ent = self.Entity
 
     if not ent then
@@ -265,7 +262,6 @@ function DModelPanel_TTT2PMS:SetModel(mdl)
     local DModelPanel = vgui.GetControlTable("DModelPanel")
     DModelPanel.SetModel(self, mdl)
 
-    ---@diagnostic disable-next-line
     self.Entity.GetPlayerColor = function()
         return ttt2pms.util.Col2Vec(self.plyColor)
     end

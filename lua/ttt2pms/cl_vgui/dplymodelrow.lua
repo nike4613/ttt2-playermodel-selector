@@ -1,7 +1,7 @@
 local Col2Vec = ttt2pms.util.Col2Vec
 
 ---
----@class DPlyModelRow_TTT2PMS : DPanel, Panel
+---@class DPlyModelRow_TTT2PMS : DPanelTTT2, DPanel, Panel
 local DPlyModelRow_TTT2PMS = {}
 
 function DPlyModelRow_TTT2PMS:Init()
@@ -13,14 +13,11 @@ function DPlyModelRow_TTT2PMS:Init()
     local padding = ttt2pms.cl.plyModelRowVPadding
     self:DockPadding(padding, padding, padding, padding)
 
-    ---@class DPanelTTT2 : DPanel, Panel
-
     ---@type DPanelTTT2
     local pnlBody = self:Add("DPanelTTT2")
     pnlBody:Dock(FILL)
     pnlBody:DockPadding(padding, 0, 0, 0)
 
-    ---@class DLabelTTT2 : DLabel
     local modelName = pnlBody:Add("DLabelTTT2")
     self.pnlName = modelName
     modelName:Dock(TOP)

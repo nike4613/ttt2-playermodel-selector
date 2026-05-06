@@ -4,6 +4,7 @@ CLGAMEMODESUBMENU.base = "base_gamemodesubmenu"
 CLGAMEMODESUBMENU.priority = 99
 CLGAMEMODESUBMENU.title = "submenu_customization_selector"
 
+---@package
 ---@class _P_ListItem
 ---@field model Playermodel
 
@@ -33,6 +34,11 @@ function CLGAMEMODESUBMENU:Populate(parent)
             row:SetUserSettings({
                 defaultColorMode = PLAYERMODEL_COLOR_MODE.SERVER,
                 globalColor = COLOR_WHITE,
+
+                usePriorityModels = false,
+                priorityModels = {},
+                useRandomModels = false,
+                randomModels = {},
             }, COLOR_BLACK)
             row:SetZPos(1024)
 
@@ -114,7 +120,9 @@ function CLGAMEMODESUBMENU:Populate(parent)
     ---@type _P_ListItem
     local it = {
         model = {
-            model = player_manager.TranslateToPlayerModelName(LocalPlayer():GetModel()),
+            model = player_manager.TranslateToPlayerModelName(
+                LocalPlayer():GetModel() --[[@as string]]
+            ),
             colorMode = PLAYERMODEL_COLOR_MODE.RANDOM,
             color = plyColor,
             skin = skin,
@@ -130,6 +138,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
 
     form:MakeButton({
         label = "create model selection popup",
+        buttonLabel = "Select Model",
         OnClick = function()
             ttt2pms.cl.ShowModelSelectPopup({
                 initialModel = it.model,
@@ -137,7 +146,10 @@ function CLGAMEMODESUBMENU:Populate(parent)
                 userSettings = {
                     defaultColorMode = PLAYERMODEL_COLOR_MODE.SERVER,
                     globalColor = COLOR_BLACK,
-                    --
+                    usePriorityModels = false,
+                    priorityModels = {},
+                    useRandomModels = false,
+                    randomModels = {},
                 },
             })
         end,

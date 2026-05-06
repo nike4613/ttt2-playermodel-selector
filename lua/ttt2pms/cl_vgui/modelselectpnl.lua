@@ -200,7 +200,6 @@ function ModelSelectorPanel_TTT2PMS:Init()
     self.pnlColorSelector:SetPalette(true)
     self.pnlColorSelector:SetAlphaBar(false)
     self.pnlColorSelector:SetWangs(true)
-    ---@diagnostic disable-next-line
     self.pnlColorSelector.ValueChanged = function(_, color)
         self.plymodel.color = color
         self.pnlModel:UpdateBodygroups()
@@ -323,9 +322,6 @@ function ModelSelectorPanel_TTT2PMS:_UpdateAvailableModels(filter)
     self.pnlIconLayout:Layout()
     self.pnlIconLayout:GetParent():InvalidateLayout(true)
 end
-
----@class DTextEntryTTT2 : DTextEntry, DPanelTTT2
----@class DNumberWangTTT2 : DNumberWang, DTextEntryTTT2
 
 ---@param form DFormTTT2
 ---@param bgrp BodygroupSettings
@@ -483,8 +479,6 @@ derma.DefineControl(
 ---@field initialModel Playermodel
 ---@field userSettings PlayermodelSettings
 ---@field serverColor Color
-
----@class DFrameTTT2 : DFrame
 
 ---
 ---@param options ModelSelectorPanelOptions

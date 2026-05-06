@@ -62,7 +62,6 @@ function DDragParent_TTT2PMS:Init()
     trash:SetPaintBackgroundEnabled(false)
     trash:SetVisible(false)
     trash:SetTall(0)
-    ---@diagnostic disable-next-line
     function trash:Paint(w, h)
         derma.SkinHook("Paint", "DragParentTrashZone_TTT2PMS", self, w, h)
     end
@@ -180,6 +179,7 @@ local function MoveThinkBasic(anim, panel, t)
     panel:SetPos(pos.x, pos.y)
 end
 
+---@package
 ---@class RelTargetAnimData : AnimationData
 ---@field RelOffs? Vector
 ---@field TargetAnim? AnimationData
@@ -510,6 +510,7 @@ function DDragParent_TTT2PMS:Think()
 
             local parent = self:GetParent()
             if parent:GetName() == "DScrollPanelTTT2" then
+                ---@cast parent DScrollPanelTTT2
                 -- we're in a scroll panel, we can actually do our work
                 parent:GetVBar():AddScroll((thinkTime - self.lastThinkTime) * 30 * dir)
             end
@@ -574,6 +575,7 @@ local function GetFrameRenderTarget(w, h)
             h,
             RT_SIZE_DEFAULT,
             MATERIAL_RT_DEPTH_SEPARATE,
+            ---@diagnostic disable-next-line
             40976,
             CREATERENDERTARGETFLAGS_AUTOMIPMAP,
             IMAGE_FORMAT_RGBA8888
@@ -734,15 +736,18 @@ derma.DefineControl(
 
 ---Find the containing DScrollPanelTTT2 of pnl.
 ---@param pnl Panel the panel to find a scrolling parent of
----@return Panel? scrollPanel the parent DScrollPanelTTT2
+---@return DScrollPanelTTT2? scrollPanel the parent DScrollPanelTTT2
 ---@return Panel lastChecked the last found parent panel checked
 function ttt2pms.cl.FindParentScrollPanel(pnl)
     local lastChecked = pnl
     while pnl and pnl:GetName() ~= "DScrollPanelTTT2" do
         lastChecked = pnl
         pnl = pnl:GetParent()
+        ---@cast pnl +?
     end
 
+    ---@cast pnl DScrollPanelTTT2
+    ---@cast pnl +?
     return pnl, lastChecked
 end
 
@@ -779,15 +784,14 @@ function ttt2pms.cl.GetOrCreateDragParent(parent)
     -- scroll panel itself, and *not* in its content panel. Thus, this rigamarole.
     local scrollPanelOnChildAdded
     if parentIsScrollPanel then
+        ---@cast parent DScrollPanelTTT2
         scrollPanelOnChildAdded = parent.OnChildAdded
-        --- @diagnostic disable-next-line
         parent.OnChildAdded = function() end
     end
 
     dragParent = vgui.Create("DDragParent_TTT2PMS", parent)
 
     if parentIsScrollPanel then
-        --- @diagnostic disable-next-line
         parent.OnChildAdded = scrollPanelOnChildAdded
     end
 
