@@ -4,6 +4,7 @@
   "ignore": [
     "stylua.toml",
     ".gitignore",
-    "*.png"
+    "*.png",
+    "*.meta.lua"
   ]
 }

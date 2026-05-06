@@ -64,6 +64,7 @@ local function ponDecodeMaybeNil(str)
     end
 end
 
+---@realm server
 ---@param orm ModelBodygroupOptionsMdl
 ---@return PlayermodelServer
 local function DecodeBodygroupsOrm(orm)
@@ -76,6 +77,7 @@ local function DecodeBodygroupsOrm(orm)
     }
 end
 
+---@realm server
 ---@param opts PlayermodelServer
 ---@return ModelBodygroupOptionsMdl
 local function EncodeBodygroupsOrm(opts)
@@ -92,6 +94,7 @@ end
 
 local bodygroupModelsTbl
 
+---@realm server
 ---@return table<string, PlayermodelServer>
 function ttt2pms.db.GetModels()
     if not bodygroupModelsTbl then
@@ -110,6 +113,45 @@ function ttt2pms.db.GetModels()
     return bodygroupModelsTbl
 end
 
+---Broadcasts a change in playermodel to players so they can update their cache.
+---@param model string
+---@param opts PlayermodelServer?
+local function BroadcastModelOptionsChange(model, opts)
+    net.SendStream(
+        "TTT2PMS_Broadcast_PlayermodelOptions",
+        ---@type TTT2PMS_Get_PlayermodelOptions_Resp
+        {
+            model = model,
+            opts = opts,
+        }
+    )
+end
+
+---@class TTT2PMS_Get_PlayermodelOptions_Req
+---@field model string
+---@class TTT2PMS_Get_PlayermodelOptions_Resp
+---@field model string
+---@field opts PlayermodelServer?
+
+net.ReceiveStream("TTT2PMS_Get_PlayermodelOptions", function(tbl, ply)
+    ---@cast tbl TTT2PMS_Get_PlayermodelOptions_Req
+
+    local models = ttt2pms.db.GetModels()
+    ---@type PlayermodelServer?
+    local data = models[tbl.model]
+
+    net.SendStream(
+        "TTT2PMS_Broadcast_PlayermodelOptions",
+        ---@type TTT2PMS_Get_PlayermodelOptions_Resp
+        {
+            model = data and data.model or tbl.model,
+            opts = data,
+        },
+        ply
+    )
+end)
+
+---@realm server
 ---@param opts PlayermodelServer
 function ttt2pms.db.SetModelOptions(opts)
     local orm = modelOptionsOrm:Find(opts.model)
@@ -121,10 +163,13 @@ function ttt2pms.db.SetModelOptions(opts)
     orm:Save()
 
     if bodygroupModelsTbl then
-        bodygroupModelsTbl[opts.model] = table.Copy(opts)
+        local clone = table.Copy(opts)
+        bodygroupModelsTbl[opts.model] = clone
+        BroadcastModelOptionsChange(clone.model, clone)
     end
 end
 
+---@realm server
 ---@param model string
 ---@return boolean
 function ttt2pms.db.DeleteModelOptions(model)
@@ -136,11 +181,13 @@ function ttt2pms.db.DeleteModelOptions(model)
 
     if bodygroupModelsTbl then
         bodygroupModelsTbl[model] = nil
+        BroadcastModelOptionsChange(model, nil)
     end
 
     return success
 end
 
+---@realm server
 function ttt2pms.db.SaveModelOptions()
     -- we want to save ALL changes in the distinct table.
     if not bodygroupModelsTbl then
@@ -187,6 +234,7 @@ function ttt2pms.db.SaveModelOptions()
     end
 end
 
+---@realm server
 ---@param model string
 ---@param field "distinct"|"allowed"|nil
 ---@return boolean
@@ -216,6 +264,7 @@ function ttt2pms.db.ClearModelSettings(model, field)
     return true
 end
 
+---@realm server
 ---@param field "distinct"|"allowed"|nil
 function ttt2pms.db.ClearSettings(field)
     ErrorNoHaltWithStack("TTT2PMS: Deleting all model options " .. field)
@@ -468,7 +517,7 @@ concommand.Add(
     "ttt2_pms_distinct_bodygroups_clear",
     function(ply, cmd, args)
         -- execute
-        -- don't nered permission check; this is server-only
+        -- don't need permission check; this is server-only
         if #args > 0 then
             -- a list of models were specified
             for _, v in ipairs(args) do
@@ -496,7 +545,7 @@ concommand.Add(
     "ttt2_pms_allowed_bodygroups_clear",
     function(ply, cmd, args)
         -- execute
-        -- don't nered permission check; this is server-only
+        -- don't need permission check; this is server-only
         if #args > 0 then
             for _, v in ipairs(args) do
                 if ttt2pms.db.ClearModelSettings(v, "allowed") then
@@ -516,7 +565,7 @@ concommand.Add(
 
 concommand.Add("ttt2_pms_distinct_bodygroups_set", function(ply, cmd, args)
     -- execute
-    -- don't nered permission check; this is server-only
+    -- don't need permission check; this is server-only
     if #args < 1 then
         error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
     end
@@ -526,8 +575,8 @@ concommand.Add("ttt2_pms_distinct_bodygroups_set", function(ply, cmd, args)
 end, BodygroupSetAutocomplete, "Sets distinct bodygroup settings for a model.", {})
 
 concommand.Add("ttt2_pms_allowed_bodygroups_set", function(ply, cmd, args)
-    -- execure
-    -- don't nered permission check; this is server-only
+    -- execute
+    -- don't need permission check; this is server-only
     if #args < 1 then
         error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
     end
@@ -549,10 +598,12 @@ local function DecodePlayerOrm(orm)
     }
 end
 
+---@param sid string
 ---@param opts PlayermodelSettings
 ---@return PlayerSettingsOrm
-local function EncodePlayerOrm(opts)
+local function EncodePlayerOrm(sid, opts)
     return {
+        name = sid,
         globalColor = opts.globalColor,
         defaultColorMode = opts.defaultColorMode,
         usePriorityModels = opts.usePriorityModels,
@@ -564,6 +615,7 @@ end
 
 local plyOptionsCache = {}
 
+---@realm server
 ---
 ---@param ply Player
 ---@return PlayermodelSettings
@@ -590,7 +642,7 @@ function ttt2pms.db.GetOptionsForPlayer(ply)
             useRandomModels = false,
             randomModels = {},
         }
-        opts = playerSettingsOrm:New(EncodePlayerOrm(resultModel))
+        opts = playerSettingsOrm:New(EncodePlayerOrm(sid, resultModel))
         opts:Save()
     else
         resultModel = DecodePlayerOrm(opts)
@@ -604,6 +656,7 @@ function ttt2pms.db.GetOptionsForPlayer(ply)
     return resultModel
 end
 
+---@realm server
 ---
 ---@param ply Player
 ---@param opts PlayermodelSettings
@@ -620,6 +673,6 @@ function ttt2pms.db.SaveOptionsForPlayer(ply, opts)
         plyOptionsCache[ply] = cached
     end
 
-    orm = table.Merge(orm, EncodePlayerOrm(opts))
+    orm = table.Merge(orm, EncodePlayerOrm(ply:SteamID64(), opts))
     orm:Save()
 end
