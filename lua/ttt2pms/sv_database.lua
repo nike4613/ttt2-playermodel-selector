@@ -252,7 +252,7 @@ end
 ---@param args table<string>
 ---@return table<number, BodygroupServer>
 ---@return BodygroupServer|nil
-local function parseBodygroupArgs(args)
+local function ParseBodygroupSetCmdArgs(args)
     ---@type table<number,BodygroupServer>
     local bodygroupSettings = {}
     ---@type nil|BodygroupServer
@@ -307,7 +307,7 @@ local function parseBodygroupArgs(args)
     return bodygroupSettings, skinSettings
 end
 
-local function setBodygroupAutocomplete(cmd, argStr, args)
+local function BodygroupSetAutocomplete(cmd, argStr, args)
     local count = #args
     if count == 0 then
         local models = ttt2pms.db.GetModels()
@@ -327,7 +327,8 @@ local function setBodygroupAutocomplete(cmd, argStr, args)
     return {}
 end
 
-local function updateModelSettings(model, bodygroupSettings, skinSettings, isAllowed)
+---@param field "allowed"|"distinct"
+local function UpdateModelSettingsForCmd(model, bodygroupSettings, skinSettings, field)
     local existing = ttt2pms.db.GetModels()[model]
     local pm = existing and table.Copy(existing)
         or {
@@ -357,10 +358,7 @@ end
 
 concommand.Add("ttt2_pms_distinct_bodygroups_clear", function(ply, cmd, args)
     -- execute
-    if not ply:IsSuperAdmin() then
-        return
-    end
-
+    -- don't nered permission check; this is server-only
     if #args > 0 then
         -- a list of models were specified
         for _, v in ipairs(args) do
@@ -404,37 +402,29 @@ end, "Clears the configured \"distinct\" bodygroups options (optionally for a sp
 
 concommand.Add("ttt2_pms_distinct_bodygroups_set", function(ply, cmd, args)
     -- execute
-    if not ply:IsSuperAdmin() then
-        return
-    end
-
+    -- don't nered permission check; this is server-only
     if #args < 1 then
         error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
     end
 
-    local bg, skin = parseBodygroupArgs(args)
-    updateModelSettings(args[1], bg, skin, false)
-end, setBodygroupAutocomplete, "Sets distinct bodygroup settings for a model.", {})
+    local bg, skin = ParseBodygroupSetCmdArgs(args)
+    UpdateModelSettingsForCmd(args[1], bg, skin, "distinct")
+end, BodygroupSetAutocomplete, "Sets distinct bodygroup settings for a model.", {})
 
 concommand.Add("ttt2_pms_allowed_bodygroups_set", function(ply, cmd, args)
     -- execure
-    if not ply:IsSuperAdmin() then
-        return
-    end
-
+    -- don't nered permission check; this is server-only
     if #args < 1 then
         error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
     end
 
-    local bg, skin = parseBodygroupArgs(args)
-    updateModelSettings(args[1], bg, skin, true)
-end, setBodygroupAutocomplete, "Sets allowed bodygroup settings for a model.", {})
+    local bg, skin = ParseBodygroupSetCmdArgs(args)
+    UpdateModelSettingsForCmd(args[1], bg, skin, "allowed")
+end, BodygroupSetAutocomplete, "Sets allowed bodygroup settings for a model.", {})
 
 concommand.Add("ttt2_pms_allowed_bodygroups_clear", function(ply, cmd, args)
     -- execute
-    if not ply:IsSuperAdmin() then
-        return
-    end
+    -- don't nered permission check; this is server-only
     if #args > 0 then
         for _, v in ipairs(args) do
             if ttt2pms.db.ClearModelSettings(v, "allowed") then
