@@ -403,8 +403,10 @@ local function GetModelData(model)
         return modelDataCache[model]
     end
 
+    print("[TTT2PMS] GetModelData: Fetching data for " .. model)
     local ent = ents.Create("prop_dynamic")
     if not ent then
+        print("[TTT2PMS] GetModelData: Failed to create prop_dynamic")
         modelDataCache[model] = nil
         return nil
     end
@@ -412,9 +414,20 @@ local function GetModelData(model)
     ent:SetModel(model)
 
     local bgs = ent:GetBodyGroups()
+    local skins = ent:SkinCount()
+    print(
+        "[TTT2PMS] GetModelData: "
+            .. model
+            .. " has "
+            .. #bgs
+            .. " bodygroups and "
+            .. skins
+            .. " skins"
+    )
+
     local data = {
         numBodygroups = #bgs,
-        numSkins = ent:SkinCount(),
+        numSkins = skins,
         bgCounts = {},
     }
 
@@ -434,7 +447,7 @@ local function BodygroupSetAutocomplete(cmd, argStr, args)
         local models = ttt2pms.db.GetModels()
         local options = {}
         for k, _ in pairs(models) do
-            options[#options + 1] = argStr .. " \"" .. k .. "\""
+            options[#options + 1] = cmd .. argStr .. k
         end
         return options
     end
@@ -444,16 +457,16 @@ local function BodygroupSetAutocomplete(cmd, argStr, args)
         -- suggesting a bodygroup
         local model = args[1]
         local data = GetModelData(model)
-        local options = { argStr .. " \"skin\"" }
+        local options = { cmd .. argStr .. " skin" }
         if data then
             for i = 0, data.numBodygroups - 1 do
-                options[#options + 1] = argStr .. " \"" .. i .. "\""
+                options[#options + 1] = cmd .. argStr .. " " .. i
             end
         end
         return options
     elseif rem == 2 then
         -- suggesting a type
-        return { argStr .. " \"pos\"", argStr .. " \"neg\"" }
+        return { cmd .. argStr .. " pos", cmd .. argStr .. " neg" }
     elseif rem == 0 and count > 0 then
         -- suggesting a value set
         local model = args[1]
@@ -490,7 +503,9 @@ local function BodygroupSetAutocomplete(cmd, argStr, args)
             for _, v in ipairs(possible) do
                 local vs = tostring(v)
                 if not entered[v] and string.StartsWith(vs, currentPartial) then
-                    options[#options + 1] = string.sub(argStr, 1, #argStr - #currentPartial) .. vs
+                    options[#options + 1] = cmd
+                        .. string.sub(argStr, 1, #argStr - #currentPartial)
+                        .. vs
                 end
             end
         end
@@ -510,12 +525,30 @@ local function ClearModelAutocomplete(cmd, argStr, args)
 
     local options = {}
     if #args == 0 then
-        options[#options + 1] = cmd
+        options[#options + 1] = cmd .. argStr
     end
 
-    for k, _ in pairs(models) do
-        if not passed[k] then
-            options[#options + 1] = argStr .. " \"" .. k .. "\""
+    if #args == 0 or args[#args] == "" then
+        -- user hasn't written anything for this argument yet
+        for k, _ in pairs(models) do
+            if not passed[k] then
+                options[#options + 1] = cmd .. argStr .. "\"" .. k .. "\""
+            end
+        end
+    else
+        -- user HAS written something for the argument, do the same as above but with an extra
+        -- filter (and trim off what the user wrote, of course...)
+        local filter = args[#args]
+        local preStr = cmd .. string.sub(argStr, 1, #argStr - string.len(filter))
+        if string.sub(preStr, -1) == "\"" then
+            preStr = string.sub(preStr, 1, -1)
+        end
+
+        local InFilter = ttt2pms.util.FilterMatcher(filter)
+        for k, _ in pairs(models) do
+            if InFilter(k) and not passed[k] then
+                options[#options + 1] = preStr .. "\"" .. k .. "\""
+            end
         end
     end
 

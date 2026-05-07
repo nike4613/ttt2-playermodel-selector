@@ -44,6 +44,29 @@ function ttt2pms.util.Col2Vec(col)
     return Vector(col.r / 255.0, col.g / 255.0, col.b / 255.0)
 end
 
+---Creates a helper function which returns `true` if the string passed to it matches [filter].
+---@param filter string?
+---@return fun(str: string): boolean
+function ttt2pms.util.FilterMatcher(filter)
+    local filterParts = string.Split(filter or "", " ")
+
+    local function InFilter(name)
+        if not filter or filter == "" then
+            return true
+        end
+
+        for _, sstr in pairs(filterParts) do
+            if not string.match(name:lower(), string.PatternSafe(sstr:lower())) then
+                return false
+            end
+        end
+
+        return true
+    end
+
+    return InFilter
+end
+
 ---Gets the actual logical set represented by a [BodygroupServer].
 ---@param bgrp BodygroupServer The bodygroup being considered
 ---@param max number The maximum value of the corresponding bodygroup

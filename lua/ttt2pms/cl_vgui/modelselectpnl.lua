@@ -276,23 +276,7 @@ end
 function ModelSelectorPanel_TTT2PMS:_UpdateAvailableModels(filter)
     self.pnlIconLayout:Clear()
 
-    local filterParts = string.Split(filter or "", " ")
-
-    PrintTable(filterParts)
-
-    local function InFilter(name)
-        if not filter or filter == "" then
-            return true
-        end
-
-        for _, sstr in pairs(filterParts) do
-            if not string.match(name:lower(), string.PatternSafe(sstr:lower())) then
-                return false
-            end
-        end
-
-        return true
-    end
+    local InFilter = ttt2pms.util.FilterMatcher(filter)
 
     for i = 1, #self.availablePlayermodels do
         local mdlName = self.availablePlayermodels[i]
