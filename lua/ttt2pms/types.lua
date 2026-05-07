@@ -64,7 +64,10 @@ PLAYERMODEL_COLOR_MODE = {
 ---         `ttt2_pms_allow_round_models` `ttt2pms.cv.allowModelPerRound`
 ---@field requireUniqueModels   boolean     Whether to enforce unique playermodels among all
 ---         players. This being set is the only case where most of the player's options do anything.
----         `ttt2_pms_require_unique_models `ttt2pms.cv.requireUniqueModels`
+---         `ttt2_pms_require_unique_models` `ttt2pms.cv.requireUniqueModels`
+---@field allowDistinctBodygroups boolean   Whether to allow treating the same playermodels with
+---         different bodygroup values as distinct, subject to the server's per-model settings.
+---         `ttt2_pms_allow_distinct_bodygroups` `ttt2pms.cv.allowDistinctBodygroups`
 
 ---A mapping of some value for each playermodel
 ---@class PerPlayermodel<T> : { [string]: T? }

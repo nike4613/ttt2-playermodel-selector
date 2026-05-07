@@ -8,7 +8,7 @@ end
 
 ---@realm shared
 ttt2pms = ttt2pms or {}
-ttt2pms.cv = table.Merge(ttt2pms.cv or {}, {
+ttt2pms.cv = {
     ---@realm shared
     allowUserColors = CreateConVar(
         "ttt2_pms_allow_user_colors",
@@ -67,7 +67,14 @@ ttt2pms.cv = table.Merge(ttt2pms.cv or {}, {
         0,
         1
     ),
-})
+    ---@realm shared
+    allowDistinctBodygroups = CreateConVar(
+        "ttt2_pms_allow_distinct_bodygroups",
+        "0",
+        fcvars,
+        "Whether to allow the same playermodel with different bodygroup values to be considered distinct for the purposes of ttt2_pms_require_unique_models."
+    ),
+}
 
 local cv = ttt2pms.cv
 
@@ -87,6 +94,9 @@ ttt2pms.__ServerOpts_getters = table.Merge(ttt2pms.__ServerOpts_getters, {
     end,
     requireUniqueModels = function(_)
         return cv.requireUniqueModels:GetBool()
+    end,
+    allowDistinctBodygroups = function(_)
+        return cv.allowDistinctBodygroups:GetBool()
     end,
 })
 
@@ -110,6 +120,10 @@ if SERVER then
         ---@param v boolean
         requireUniqueModels = function(_, v)
             cv.requireUniqueModels:SetBool(v)
+        end,
+        ---@param v boolean
+        allowDistinctBodygroups = function(_, v)
+            cv.allowDistinctBodygroups:SetBool(v)
         end,
     })
 end
