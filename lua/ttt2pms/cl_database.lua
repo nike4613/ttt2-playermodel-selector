@@ -7,31 +7,45 @@ local modelOptions = {}
 local modelPendingCallbacks = {}
 
 ---Asynchronously gets the server's playermodel options for a specified model.
+---
+---If no callback is specified, this will request the model information be made available
+---locally. Requests are automatically deduplicated; if multiple calls to this function are made
+---before the information is available, only one request will be sent.
+---
 ---@realm client
 ---
 ---@param model string The model to get the options for.
----@param callback fun(opts: PlayermodelServer?) The function to call once the options are available.
+---@param callback? fun(opts: PlayermodelServer?) The function to call once the options are available.
 function ttt2pms.db.GetModelOptions(model, callback)
     local cached = modelOptions[model]
     if cached then
-        callback(cached)
+        if callback then
+            callback(cached)
+        end
         return
     end
 
     -- not cached, need to send a request to the server and register a callback
-    if callback then
-        local callbacks = modelPendingCallbacks[model] or {}
-        callbacks[#callbacks + 1] = callback
-        modelPendingCallbacks[model] = callbacks
+    local callbacks = modelPendingCallbacks[model]
+
+    if not callbacks then
+        net.SendStream(
+            "TTT2PMS_Get_PlayermodelOptions",
+            ---@type TTT2PMS_Get_PlayermodelOptions_Req
+            {
+                model = model,
+            }
+        )
     end
 
-    net.SendStream(
-        "TTT2PMS_Get_PlayermodelOptions",
-        ---@type TTT2PMS_Get_PlayermodelOptions_Req
-        {
-            model = model,
-        }
-    )
+    callbacks = callbacks or {}
+
+    -- set callbacks as an indicator that we've sent a request already
+    if callback then
+        callbacks[#callbacks + 1] = callback
+    end
+
+    modelPendingCallbacks[model] = callbacks
 end
 
 net.ReceiveStream("TTT2PMS_Broadcast_PlayermodelOptions", function(data)

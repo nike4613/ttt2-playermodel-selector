@@ -154,3 +154,14 @@ function DTextEntryTTT2:SetDefaultValue(value) end
 
 ---@realm client
 ---@class DNumberWangTTT2 : DTextEntryTTT2, DNumberWang
+local DNumberWangTTT2 = {}
+
+---Gets the list of permitted values currently set.
+---@return table<number>|nil
+function DNumberWangTTT2:GetPermittedValues() end
+
+---Sets the list of permitted values that this number wang can take.
+---If a value is currently set, this will change the value to the one in the permitted value table
+---nearest to the currently set value.
+---@param tbl table<number>?
+function DNumberWangTTT2:SetPermittedValues(tbl) end

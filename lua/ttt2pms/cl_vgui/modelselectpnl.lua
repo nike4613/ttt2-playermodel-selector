@@ -17,7 +17,7 @@ ttt2pms.cl = ttt2pms.cl or {}
 ---@field private plymodelSettings PlayermodelSettings
 ---@field private serverColor Color
 ---
----@field private bodygroupsFormItems table
+---@field private bodygroupsFormItems { skin: DNumberWangTTT2, bodygroups: table<number, DNumberWangTTT2> }
 ---
 ---@field private availablePlayermodels table<string>
 ---
@@ -307,11 +307,16 @@ function ModelSelectorPanel_TTT2PMS:_UpdateAvailableModels(filter)
             icon.DoClick = function()
                 self.plymodel = {
                     model = mdlName,
-                    colorMode = self.plymodel.colorMode,
-                    color = self.plymodel.color,
+                    colorMode = self.plymodel and self.plymodel.colorMode,
+                    color = self.plymodel and self.plymodel.color or COLOR_WHITE,
                     skin = { value = 0, random = false },
                     bodygroups = {},
                 }
+
+                -- eagery try to get the model's information here, so we may not need to
+                -- asynchronously update the UI
+                ttt2pms.db.GetModelOptions(mdlName)
+
                 self.modelDirty = true
                 self:InvalidateLayout(false)
                 self.pnlModelPos:DefaultPos()
@@ -363,9 +368,30 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
         self.pnlCmbColorMode:ChooseOptionValue(self.plymodel.colorMode or -1)
         self.pnlColorSelector:SetColor(self.plymodel.color)
 
+        ---@type PlayermodelServer?
+        local mdlOpts
+        local mdlOptsLateReconf = false
+        ttt2pms.db.GetModelOptions(self.plymodel.model, function(opts)
+            -- if the options are immediately available, this funciton is called synchronously in GetModelOptions.
+            -- Thus, we can assign through the upvalue, and have it synchronously during setup.
+            -- Otherwise, we'll have to refresh here (which we'll do by marking dirty and relayouting)
+            mdlOpts = opts
+
+            if mdlOptsLateReconf then
+                self.modelDirty = true
+                self:PerformLayout()
+            end
+        end)
+        mdlOptsLateReconf = true
+
         local visibleRowCt = 0
 
+        local skinVals
         local skins = self.pnlModel.Entity:SkinCount()
+        if mdlOpts then
+            skinVals = ttt2pms.util.GetBodygroupSet(mdlOpts.skinAllowed, skins)
+            skins = #skinVals
+        end
         if skins > 1 then
             visibleRowCt = 1
             self.bodygroupsFormItems.skin:GetParent():SetVisible(true)
@@ -374,9 +400,18 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
             self.bodygroupsFormItems.skin:SetMinMax(0, skins - 1)
             self.bodygroupsFormItems.skin:SetValue(self.plymodel.skin.value)
             self.bodygroupsFormItems.skin:SetEnabled(not self.plymodel.skin.random)
+
+            if skinVals then
+                self.bodygroupsFormItems.skin:SetPermittedValues(skinVals)
+            end
         else
             self.bodygroupsFormItems.skin:GetParent():SetVisible(false)
             self.bodygroupsFormItems.skin.bgrp = { random = false, value = 0 }
+            if skinVals then
+                self.plymodel.skin.value = #skinVals > 0 and skinVals[1] or 0
+            else
+                self.plymodel.skin.value = 0
+            end
         end
 
         -- clear the existing bodygroups
@@ -390,6 +425,12 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
 
         for i = 0, self.pnlModel.Entity:GetNumBodyGroups() - 1 do
             local ct = self.pnlModel.Entity:GetBodygroupCount(i)
+
+            local vals
+            if mdlOpts and mdlOpts.bodygroupsAllowed[i] then
+                vals = ttt2pms.util.GetBodygroupSet(mdlOpts.bodygroupsAllowed[i], ct)
+                ct = #vals
+            end
 
             if ct > 1 then
                 visibleRowCt = visibleRowCt + 1
@@ -406,14 +447,26 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
                 )
                 wang:SetMinMax(0, ct - 1)
 
+                if vals then
+                    wang:SetPermittedValues(vals)
+                end
+
                 bgrpTbl[#bgrpTbl + 1] = wang
+            else
+                local bgrp = self.plymodel.bodygroups[i]
+                if vals then
+                    bgrp = bgrp or { random = false, value = #vals > 0 and vals[1] or 0 }
+                    self.plymodel.bodygroups[i] = bgrp
+                else
+                    if bgrp then
+                        bgrp.value = 0
+                    end
+                end
             end
         end
 
         self.pnlFormBodygroups:InvalidateLayout(true)
         self.pnlFormBodygroups:SetVisible(visibleRowCt ~= 0)
-
-        PrintTable(self.plymodel)
 
         -- we need to do this because we might have just initializized bodygroups
         self.pnlModel:UpdateBodygroups()

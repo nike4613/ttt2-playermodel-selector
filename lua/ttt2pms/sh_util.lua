@@ -44,6 +44,51 @@ function ttt2pms.util.Col2Vec(col)
     return Vector(col.r / 255.0, col.g / 255.0, col.b / 255.0)
 end
 
+---Gets the actual logical set represented by a [BodygroupServer].
+---@param bgrp BodygroupServer The bodygroup being considered
+---@param max number The maximum value of the corresponding bodygroup
+---@return table<number> values
+function ttt2pms.util.GetBodygroupSet(bgrp, max)
+    if bgrp.mode == "pos" then
+        -- in positive mode, the values are the set directly
+        local values = bgrp.values
+        local newValues
+        -- we'll just filter to be strictly in-range
+        for i = 1, #values do
+            local value = values[i]
+
+            if value < 0 or value >= max then
+                -- item needs to be removed; if we haven't created newValues yet, do so and copy in
+                if not newValues then
+                    newValues = {}
+                    for j = 1, i - 1 do
+                        newValues[j] = values[j]
+                    end
+                end
+            else
+                -- item is good; copy into newValues if appropriate
+                if newValues then
+                    newValues[#newValues + 1] = value
+                end
+            end
+        end
+
+        return newValues or values
+    else
+        -- in negative mode, values represents the values *not* present
+        local lut = table.Flip(bgrp.values)
+
+        local values = {}
+        for i = 0, max - 1 do
+            if lut[i] ~= nil then
+                values[#values + 1] = i
+            end
+        end
+
+        return values
+    end
+end
+
 local plymodelsPending = {}
 
 ---Gets the serverside list of all selected models, playermodels.GetSelectedModels().
