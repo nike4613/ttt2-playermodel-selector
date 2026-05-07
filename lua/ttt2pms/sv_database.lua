@@ -396,7 +396,7 @@ end
 
 local modelDataCache = {}
 ---@param model string
----@return {numBodygroups: integer, numSkins: integer, bgCounts: table<number, integer>}?
+---@return {numSkins: integer, bgs: table<number, BodyGroupData>}?
 local function GetModelData(model)
     if not model then
         return nil
@@ -406,7 +406,6 @@ local function GetModelData(model)
     end
 
     local mdlPath = player_manager.TranslatePlayerModel(model)
-    local mdlInfo = util.GetModelInfo(mdlPath)
 
     local ent = ents.Create("prop_dynamic")
     if not ent then
@@ -422,17 +421,17 @@ local function GetModelData(model)
     ent:Spawn()
 
     local bgs = ent:GetBodyGroups()
-    local skins = mdlInfo.SkinCount
+    local skins = ent:SkinCount()
+
+    local bgs2 = {}
+    for _, v in ipairs(bgs) do
+        bgs2[v.id] = v
+    end
 
     local data = {
-        numBodygroups = #bgs,
+        bgs = bgs2,
         numSkins = skins,
-        bgCounts = {},
     }
-
-    for _, bg in ipairs(bgs) do
-        data.bgCounts[bg.id] = bg.num
-    end
 
     ent:Remove()
 
@@ -495,7 +494,7 @@ local function BodygroupSetAutocomplete(cmd, argStr, args)
         local data = GetModelData(model)
         local possible = { "skin" }
         if data then
-            for i = 0, data.numBodygroups - 1 do
+            for i = 0, #data.bgs - 1 do
                 possible[#possible + 1] = tostring(i)
             end
         end
@@ -532,7 +531,7 @@ local function BodygroupSetAutocomplete(cmd, argStr, args)
         else
             local bgId = tonumber(bgSpec)
             if bgId then
-                local valCount = data.bgCounts[bgId] or 0
+                local valCount = data.bgs[bgId].num or 0
                 for i = 0, valCount - 1 do
                     possible[#possible + 1] = tostring(i)
                 end
@@ -707,6 +706,12 @@ concommand.Add("ttt2_pms_print_bodygroup_settings", function()
     ---@param groupName string
     ---@param bgroup BodygroupServer
     local function PrintBgroup(type, mdl, groupName, bgroup)
+        local model = GetModelData(mdl)
+
+        if groupName ~= "skin" and model and model.bgs[tonumber(groupName)] then
+            print("// bodygroup name: " .. model.bgs[tonumber(groupName)].name)
+        end
+
         print(
             "ttt2_pms_" .. type .. "_bodygroups_set",
             "\"" .. mdl .. "\"",
