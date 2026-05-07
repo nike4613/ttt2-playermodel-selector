@@ -165,3 +165,56 @@ function DNumberWangTTT2:GetPermittedValues() end
 ---nearest to the currently set value.
 ---@param tbl table<number>?
 function DNumberWangTTT2:SetPermittedValues(tbl) end
+
+---@class CLGAMEMODEMENU
+---@field priority integer
+---@field icon IMaterial?
+---@field title string
+---@field description string
+---@field searchBarPlaceholderText string?
+---
+---@type CLGAMEMODEMENU
+CLGAMEMODEMENU = {} ---@diagnostic disable-line
+
+---@class CLGAMEMODESUBMENU
+---@field priority integer
+---@field title string
+---@field searchable boolean
+---
+---@type CLGAMEMODESUBMENU
+CLGAMEMODESUBMENU = {} ---@diagnostic disable-line
+
+---This function is used to populate the submenu on open/refresh.
+---@note This function should be overwritten but not called.
+---@realm client
+---@hook
+---@param parent Panel
+function CLGAMEMODESUBMENU:Populate(parent) end
+
+---This function is used to populate the button panel of a submenu on open/refresh.
+---@note This function should be overwritten but not called.
+---@note [CLGAMEMODESUBMENU:HasButtonPanel] must return `true` to display a button panel.
+---@realm client
+---@hook
+---@param parent Panel
+function CLGAMEMODESUBMENU:PopulateButtonPanel(parent) end
+
+---Gets whether this menu should have a button panel.
+---@note This function should be overridden but not called.
+---@realm client
+---@hook
+---@return boolean HasButtonPanel Whether this submenu has a button panel
+function CLGAMEMODESUBMENU:HasButtonPanel() end
+
+---Called after the class is initialized and has finished inheriting.
+---@note This function should be overridden but not called.
+---@realm client
+---@hook
+function CLGAMEMODESUBMENU:Initialize() end
+
+---Gets whether this submenu should be shown.
+---@note This function should be overridden but not called.
+---@realm client
+---@hook
+---@return boolean ShouldSow Whether this submenu should be visible
+function CLGAMEMODESUBMENU:ShouldShow() end
