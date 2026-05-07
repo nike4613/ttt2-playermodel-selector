@@ -80,12 +80,53 @@ function ttt2pms.util.GetBodygroupSet(bgrp, max)
 
         local values = {}
         for i = 0, max - 1 do
-            if lut[i] ~= nil then
+            if lut[i] == nil then
                 values[#values + 1] = i
             end
         end
 
         return values
+    end
+end
+
+---Gets a concrete bodygroup value given some BodygroupSettings, and a maximum bodygroup value.
+---@param bgrp number|BodygroupSettings the bodygroup setting to use
+---@param max number the maximum value of the bodygroup
+---@param allowedValues? table<number> the possible values this bodygroup is permitted to take
+---@return number value the concrete bodygroup value
+function ttt2pms.util.GetBodygroupValue(bgrp, max, allowedValues)
+    local value
+
+    if type(bgrp) == "number" then
+        value = bgrp
+    elseif not bgrp.random then
+        value = bgrp.value
+    end
+
+    if value == nil then
+        -- value must be randomly selected
+        if allowedValues then
+            -- the randomly selected allowed value will be the final value
+            return allowedValues[math.random(#allowedValues)]
+        else
+            -- the randomly selected is necesarily in range, so will be the final value
+            return math.random(0, max)
+        end
+    else
+        -- [value] must be sanitized to ensure it is in-range/allowed
+        if allowedValues then
+            if not table.HasValue(allowedValues, value) then
+                -- default to 0 here
+                return 0
+            end
+        else
+            if value < 0 or value >= max then
+                return 0
+            end
+        end
+
+        -- value was ok, return it
+        return value
     end
 end
 

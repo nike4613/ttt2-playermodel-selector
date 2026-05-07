@@ -20,6 +20,7 @@
 ---@field package serverColor Color
 ---@field private plyColor Color
 ---@field private updTime number
+---@field package serverModelOpts? PlayermodelServer
 ---
 local DModelPanel_TTT2PMS = {}
 
@@ -212,7 +213,14 @@ local function UpdateBodygroups(self, plymodel, updateRandom)
     end
 
     if not istable(plymodel.skin) or not plymodel.skin.random or updateRandom then
-        ent:SetSkin(ttt2pms.cl.GetBodygroupValue(plymodel.skin, ent:SkinCount()))
+        local allowed = self.serverModelOpts and self.serverModelOpts.skinAllowed
+        ent:SetSkin(
+            ttt2pms.util.GetBodygroupValue(
+                plymodel.skin,
+                ent:SkinCount(),
+                allowed and ttt2pms.util.GetBodygroupSet(allowed, ent:SkinCount())
+            )
+        )
     end
 
     for i = 0, ent:GetNumBodyGroups() - 1 do
@@ -221,7 +229,16 @@ local function UpdateBodygroups(self, plymodel, updateRandom)
             ent:SetBodygroup(i, 0)
         else
             if not istable(bgrp) or not bgrp.random or updateRandom then
-                ent:SetBodygroup(i, ttt2pms.cl.GetBodygroupValue(bgrp, ent:GetBodygroupCount(i)))
+                local ct = ent:GetBodygroupCount(i)
+                local allowed = self.serverModelOpts and self.serverModelOpts.bodygroupsAllowed[i]
+                ent:SetBodygroup(
+                    i,
+                    ttt2pms.util.GetBodygroupValue(
+                        bgrp,
+                        ct,
+                        allowed and ttt2pms.util.GetBodygroupSet(allowed, ct)
+                    )
+                )
             end
         end
     end
@@ -231,10 +248,24 @@ end
 ---@param plymodel? Playermodel
 function DModelPanel_TTT2PMS:SetPlayermodel(plymodel)
     if plymodel then
+        self.plymodel = plymodel
+
         local mdlPath = player_manager.TranslatePlayerModel(plymodel.model)
         if not self.Entity or self.Entity:GetModel() ~= mdlPath then
             self:SetModel(mdlPath)
         end
+
+        self.serverModelOpts = nil -- the old options aren't valid for the new model
+        ttt2pms.db.GetModelOptions(plymodel.model, function(opts)
+            if not self.plymodel or self.plymodel.model ~= plymodel.model then
+                -- model got modified while in-flight, bail
+                return
+            end
+
+            -- we have (maybe asynchronously) gotten new bodygroup information
+            self.serverModelOpts = opts
+            UpdateBodygroups(self, self.plymodel, true)
+        end)
 
         UpdatePlayerColor(self, plymodel, false)
         UpdateBodygroups(self, plymodel, false)

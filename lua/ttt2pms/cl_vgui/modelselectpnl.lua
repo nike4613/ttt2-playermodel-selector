@@ -173,6 +173,10 @@ function ModelSelectorPanel_TTT2PMS:Init()
             },
         },
         OnChange = function(value)
+            if not self.plymodel then
+                return
+            end
+
             local isNil = value == -1
             if not isNil then
                 self.plymodel.colorMode = tonumber(value)
@@ -189,10 +193,6 @@ function ModelSelectorPanel_TTT2PMS:Init()
 
             self.pnlModel:UpdateBodygroups()
             self.pnlColorSelector:GetParent():InvalidateLayout(false)
-
-            if self.OnChanged then
-                self.OnChanged(table.Copy(self.plymodel))
-            end
         end,
     })
 
@@ -388,7 +388,7 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
 
         local skinVals
         local skins = self.pnlModel.Entity:SkinCount()
-        if mdlOpts then
+        if mdlOpts and mdlOpts.skinAllowed then
             skinVals = ttt2pms.util.GetBodygroupSet(mdlOpts.skinAllowed, skins)
             skins = #skinVals
         end
@@ -396,6 +396,7 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
             visibleRowCt = 1
             self.bodygroupsFormItems.skin:GetParent():SetVisible(true)
             self.bodygroupsFormItems.skin.bgrp = self.plymodel.skin
+            ---@diagnostic disable-next-line
             self.bodygroupsFormItems.skin.toggleBtn.state = self.plymodel.skin.random and 2 or 1
             self.bodygroupsFormItems.skin:SetMinMax(0, skins - 1)
             self.bodygroupsFormItems.skin:SetValue(self.plymodel.skin.value)
@@ -477,7 +478,7 @@ function ModelSelectorPanel_TTT2PMS:PerformLayout()
 
     local padding = ttt2pms.cl.plyModelRowVPadding
 
-    self.btnApply:SetPos(padding, self.pnlModel:GetTall() - self.btnApply:GetWide() - padding)
+    self.btnApply:SetPos(padding, self.pnlModel:GetTall() - self.btnApply:GetTall() - padding)
 
     self.btnResetMdlPos:SetPos(
         self.pnlModel:GetWide() - self.btnResetMdlPos:GetWide() - padding,
