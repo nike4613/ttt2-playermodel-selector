@@ -344,14 +344,17 @@ local function ParseBodygroupSetCmdArgs(args)
         i = i + 1
 
         local valuesList = string.Split(valuesStr, ",")
-        local values = {}
+        local valuesInv = {}
         for _, v in ipairs(valuesList) do
             local num = tonumber(v)
             if num == nil then
                 error("value '" .. v .. "' must be a number")
             end
-            values[#values + 1] = num
+            valuesInv[num] = true
         end
+
+        local values = table.GetKeys(valuesInv)
+        table.sort(values)
 
         if bodygroup then
             bodygroupSettings[bodygroup] = { mode = mode, values = values }
@@ -523,7 +526,9 @@ concommand.Add(
     "ttt2_pms_distinct_bodygroups_clear",
     function(ply, cmd, args)
         -- execute
-        -- don't need permission check; this is server-only
+        if not ply:IsSuperAdmin() then
+            error("must be admin")
+        end
         if #args > 0 then
             -- a list of models were specified
             for _, v in ipairs(args) do
@@ -551,7 +556,9 @@ concommand.Add(
     "ttt2_pms_allowed_bodygroups_clear",
     function(ply, cmd, args)
         -- execute
-        -- don't need permission check; this is server-only
+        if not ply:IsSuperAdmin() then
+            error("must be admin")
+        end
         if #args > 0 then
             for _, v in ipairs(args) do
                 if ttt2pms.db.ClearModelSettings(v, "allowed") then
@@ -571,7 +578,9 @@ concommand.Add(
 
 concommand.Add("ttt2_pms_distinct_bodygroups_set", function(ply, cmd, args)
     -- execute
-    -- don't need permission check; this is server-only
+    if not ply:IsSuperAdmin() then
+        error("must be admin")
+    end
     if #args < 1 then
         error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
     end
@@ -582,7 +591,9 @@ end, BodygroupSetAutocomplete, "Sets distinct bodygroup settings for a model.", 
 
 concommand.Add("ttt2_pms_allowed_bodygroups_set", function(ply, cmd, args)
     -- execute
-    -- don't need permission check; this is server-only
+    if not ply:IsSuperAdmin() then
+        error("must be admin")
+    end
     if #args < 1 then
         error(cmd .. " usage: <mdl> (<bodygroup> <mode> <comma separated values>)+")
     end
@@ -590,6 +601,61 @@ concommand.Add("ttt2_pms_allowed_bodygroups_set", function(ply, cmd, args)
     local bg, skin = ParseBodygroupSetCmdArgs(args)
     UpdateModelSettingsForCmd(args[1], bg, skin, "allowed")
 end, BodygroupSetAutocomplete, "Sets allowed bodygroup settings for a model.", {})
+
+concommand.Add("ttt2_pms_print_bodygroup_settings", function()
+    -- all players are allowed to do this; this isn't secret information
+
+    -- first, print headers
+    print("The following concommands will recreate the current bodygroup settings:")
+    print(
+        "--------------------------------------------------------------------------------------------"
+    )
+    local models = ttt2pms.db.GetModels()
+
+    -- first, do the allowed set
+    print("ttt2_pms_allowed_bodygroups_clear")
+
+    ---
+    ---@param type "allowed"|"distinct"
+    ---@param mdl string
+    ---@param groupName string
+    ---@param bgroup BodygroupServer
+    local function PrintBgroup(type, mdl, groupName, bgroup)
+        print(
+            "ttt2_pms_" .. type .. "_bodygroups_set",
+            "\"" .. mdl .. "\"",
+            groupName,
+            bgroup.mode,
+            table.concat(bgroup.values, ",")
+        )
+    end
+
+    for mdl, opts in pairs(models) do
+        if opts.skinAllowed then
+            PrintBgroup("allowed", mdl, "skin", opts.skinAllowed)
+        end
+        for id, bgrp in pairs(opts.bodygroupsAllowed) do
+            PrintBgroup("allowed", mdl, tostring(id), bgrp)
+        end
+    end
+
+    -- then the distinct set
+    print()
+    print("ttt2_pms_distinct_bodygroups_clear")
+
+    for mdl, opts in pairs(models) do
+        if opts.skinDistinct then
+            PrintBgroup("distinct", mdl, "skin", opts.skinDistinct)
+        end
+        for id, bgrp in pairs(opts.bodygroupsDistinct) do
+            PrintBgroup("distinct", mdl, tostring(id), bgrp)
+        end
+    end
+
+    print(
+        "--------------------------------------------------------------------------------------------"
+    )
+end, nil, "Print the current bodygroup settings as a set of concommands to reproduce it.", {})
 
 ---@param orm PlayerSettingsOrm
 ---@return PlayermodelSettings
