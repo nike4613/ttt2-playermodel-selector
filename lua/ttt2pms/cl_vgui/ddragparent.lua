@@ -30,9 +30,9 @@ AccessorFunc(DDragParent_TTT2PMS, "nScrollUpZone", "ScrollUpZone", FORCE_NUMBER)
 AccessorFunc(DDragParent_TTT2PMS, "nScrollDownZone", "ScrollDownZone", FORCE_NUMBER)
 
 ---The number of seconds it takes to show or hide the trash area.
-local C_TrashShowTime = 0.5
+local C_TrashShowTime = 0.2
 ---The number of seconds it takes to grow or shrink the dragged panel when hovering the trash area.
-local C_GrowShrinkTime = 0.25
+local C_GrowShrinkTime = 0.15
 ---The factor by which elements shrink when held over the trash area.
 local C_ShrinkFactor = 0.6
 
@@ -244,6 +244,7 @@ function DDragParent_TTT2PMS:EndDrag()
         return
     end
 
+    self:MouseCapture(false)
     self.dragState.dragging = false
 
     local requiredDecrs = 1

@@ -2,6 +2,8 @@ local Col2Vec = ttt2pms.util.Col2Vec
 
 ---
 ---@class DPlyModelRow_TTT2PMS : DPanelTTT2, DPanel, Panel
+---@field package dragList? DDragList_TTT2PMS
+---@field package dragListId? any
 local DPlyModelRow_TTT2PMS = {}
 
 function DPlyModelRow_TTT2PMS:Init()
@@ -59,6 +61,102 @@ function DPlyModelRow_TTT2PMS:Init()
     self.pnlColorDisplayInner = pnlColDisp
     pnlColDisp:SetPos(-100000, -100000)
     pnlColDisp:SetSize(0, 0)
+
+    local pnlDragArea = self:Add("DPanelTTT2")
+    self.pnlDragArea = pnlDragArea
+    pnlDragArea:Dock(RIGHT)
+    pnlDragArea:SetZPos(0)
+    pnlDragArea:SetVisible(false)
+    function pnlDragArea:PerformLayout()
+        self:SetWide(self:GetTall() * 2 / 3)
+    end
+
+    ---@param mouseCode MOUSE
+    function pnlDragArea.OnMousePressed(_, mouseCode)
+        if mouseCode ~= MOUSE_LEFT then
+            return
+        end
+        if not self.dragList then
+            return
+        end
+        -- mouse press on this region drags the item
+        self.dragList:StartDrag(self.dragListId, mouseCode, true)
+    end
+
+    ---@param w number
+    ---@param h number
+    function pnlDragArea:Paint(w, h)
+        -- TODO: better display for this
+        draw.RoundedBox(0, 0, 0, w, h, Color(255, 255, 255, 127))
+    end
+
+    local pnlBtnArea = self:Add("DPanelTTT2")
+    self.pnlBtnArea = pnlBtnArea
+    pnlBtnArea:Dock(RIGHT)
+    pnlBtnArea:SetZPos(1)
+    pnlBtnArea:SetVisible(false)
+    function pnlBtnArea:PerformLayout()
+        local wide = self:GetTall() / 3
+        self:SetWide(wide)
+
+        local children = self:GetChildren()
+        for i = 1, #children do
+            local child = children[i]
+
+            child:SetSize(wide, wide)
+        end
+    end
+
+    -- TODO: these buttons currently look like ass. replace their paint with one that just draws an
+    -- icon corresponding to the action
+    local btnUp = pnlBtnArea:Add("DButtonTTT2")
+    btnUp:Dock(TOP)
+    btnUp:SetText("up")
+    function btnUp.DoClick()
+        if not self.dragList then
+            return
+        end
+        self.dragList:MoveItemIdRelative(self.dragListId, -1)
+    end
+    local btnDn = pnlBtnArea:Add("DButtonTTT2")
+    btnDn:Dock(BOTTOM)
+    btnDn:SetText("down")
+    function btnDn.DoClick()
+        if not self.dragList then
+            return
+        end
+        self.dragList:MoveItemIdRelative(self.dragListId, 1)
+    end
+    local btnDup = pnlBtnArea:Add("DButtonTTT2")
+    btnDup:Dock(FILL)
+    btnDup:SetText("dupe")
+    function btnDup.DoClick()
+        if not self.dragList then
+            return
+        end
+
+        -- inject new item after self
+        local newIdx = self.dragList:IndexOfId(self.dragListId)
+        self.dragList:InsertItem(self:CreateDuplicateListValue(), newIdx + 1)
+    end
+end
+
+---
+---@param list DDragList_TTT2PMS?
+---@param id any?
+function DPlyModelRow_TTT2PMS:SetDragList(list, id)
+    self.dragList = list
+    if list == nil then
+        id = nil
+    end
+    self.dragListId = id
+
+    self.pnlDragArea:SetVisible(list ~= nil)
+    self.pnlBtnArea:SetVisible(list ~= nil)
+end
+
+function DPlyModelRow_TTT2PMS:CreateDuplicateListValue()
+    return table.Copy(self.plymodel)
 end
 
 ---
@@ -90,12 +188,6 @@ function DPlyModelRow_TTT2PMS:SetUserSettings(settings, serverColor)
         settings.globalColor,
         serverColor or COLOR_WHITE
     )
-end
-
----
----@param color Color
-function DPlyModelRow_TTT2PMS:SetPlayerColor(color)
-    self.pnlModel:SetPlayerColor(color)
 end
 
 ---

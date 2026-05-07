@@ -42,9 +42,18 @@ function CLGAMEMODESUBMENU:Populate(parent)
             }, COLOR_BLACK)
             row:SetZPos(1024)
 
+            ---@return _P_ListItem
+            function row:CreateDuplicateListValue()
+                return {
+                    model = table.Copy(self:GetPlayerModel() --[[@as Playermodel]]),
+                }
+            end
+            row:SetDragList(dragList, hnd)
+
             row:InvalidateLayout(true)
             slot:SetTall(row:GetTall())
 
+            --[[
             --- @diagnostic disable-next-line
             function row:OnMousePressed(keyCode)
                 if keyCode ~= MOUSE_LEFT then
@@ -52,6 +61,7 @@ function CLGAMEMODESUBMENU:Populate(parent)
                 end
                 dragList:StartDrag(hnd, keyCode, true)
             end
+            ]]
 
             return slot, row
         end,

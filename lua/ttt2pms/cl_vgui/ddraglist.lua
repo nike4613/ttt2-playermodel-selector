@@ -39,7 +39,7 @@
 ---
 ---@field private anyIsDragging boolean
 ---@field private nextId number
----@field private idMap table<number, DDragList_P_Item<T>>
+---@field package idMap table<number, DDragList_P_Item<T>>
 ---@field private itemOrder table<number>
 ---@field private itemDraggedOrder? table<number>
 ---@field private itemToId table<T, number>
@@ -177,16 +177,23 @@ function DDragList_TTT2PMS:RemoveItem(item)
 end
 
 ---Get the number of items in this list.
----@return number count the number of items in the list
+---@return integer count the number of items in the list
 function DDragList_TTT2PMS:Count()
     return #self.itemOrder
 end
 
 ---Get the item at position i in the list.
----@param i number
+---@param i integer
 ---@return T
 function DDragList_TTT2PMS:Item(i)
     return self.idMap[self.itemOrder[i]].item
+end
+
+---Gets the ID of the item at index [i].
+---@param i integer
+---@return any id
+function DDragList_TTT2PMS:ItemId(i)
+    return self.itemOrder[i]
 end
 
 ---Gets an iterator over the items in this list.
@@ -350,7 +357,7 @@ end
 ---@generic T
 ---@param tbl table<T>
 ---@param oldIndex number
----@param newIndex number
+---@param newIndex number new index as it would be in the CURRENT list, not the FINAL list.
 ---@param id T
 ---@return number newIndex
 local function MoveItemInList(tbl, oldIndex, newIndex, id)
@@ -400,6 +407,9 @@ local function Draggable_Move(self, pos)
         ---@diagnostic disable-next-line
         self.list.dirty = true
     end
+
+    -- lock x position of dragged item
+    pos.localX = pos.oldLocalX
 end
 
 ---@package
@@ -526,14 +536,19 @@ local function Draggable_Cancel(self)
     )
 end
 
+local function CheckId(self, id)
+    if type(id) ~= "number" or not self.idMap[id] then
+        error("invalid item id")
+    end
+end
+
 ---Begin the drag of the item with ID `itemId`
 ---@param itemId any
 ---@param btn MOUSE
 ---@param allowTrash? boolean
 function DDragList_TTT2PMS:StartDrag(itemId, btn, allowTrash)
-    if type(itemId) ~= "number" or not self.idMap[itemId] then
-        error("invalid item id")
-    end
+    CheckId(self, itemId)
+    ---@cast itemId integer
 
     if self.anyIsDragging then
         error("an item is already being dragged")
@@ -568,6 +583,81 @@ function DDragList_TTT2PMS:StartDrag(itemId, btn, allowTrash)
     self.anyIsDragging = true
     self.pnlDragParent:BeginDrag(draggable)
     self.dirty = true
+end
+
+---Gets the index of the item referred to by [id]
+---@param id any
+---@return integer index The index of the item with ID [id], or `-1` if the item does not exist.
+function DDragList_TTT2PMS:IndexOfId(id)
+    CheckId(self, id)
+    ---@cast id integer
+
+    return IndexOf(self.itemOrder, id)
+end
+
+---Moves the item with ID [id] to [idx].
+---@param id any
+---@param idx integer The index to move the item with ID [id] to. This will be the index the item ends up at in the final list.
+function DDragList_TTT2PMS:MoveItemIdTo(id, idx)
+    CheckId(self, id)
+    ---@cast id integer
+
+    local oldIndex = IndexOf(self.itemOrder, id)
+    local newIndex = idx
+    if newIndex > oldIndex then
+        -- MoveItemInList expects the position to *insert* the item in the current list, as if the
+        -- old position hadn't been removed. (It does this because this is the useful behavior for
+        -- the other uses.)
+        newIndex = newIndex + 1
+    end
+
+    local finalIndex = MoveItemInList(self.itemOrder, oldIndex, newIndex, id)
+
+    if finalIndex ~= oldIndex then
+        self.dirty = true
+        self:InvalidateLayout(false)
+    end
+end
+
+---Moves the item at index [from] to index [to].
+---@note Equivalent to `MoveItemIdTo(ItemId(from), to)`
+---@param from integer
+---@param to integer
+function DDragList_TTT2PMS:ShuffleItem(from, to)
+    if to > from then
+        to = to - 1
+    end
+
+    local finalIndex = MoveItemInList(self.itemOrder, from, to, self.itemOrder[from])
+
+    if finalIndex ~= from then
+        self.dirty = true
+        self:InvalidateLayout(false)
+    end
+end
+
+---Moves the item with ID [id] relative to its current position, clamping to table boundaries.
+---@param id any
+---@param rel integer The relative offset index to move the item to.
+function DDragList_TTT2PMS:MoveItemIdRelative(id, rel)
+    CheckId(self, id)
+    ---@cast id integer
+
+    local oldIndex = IndexOf(self.itemOrder, id)
+    local newIndex = oldIndex + rel
+    if newIndex < 1 then
+        newIndex = 1
+    elseif newIndex > #self.itemOrder then
+        newIndex = #self.itemOrder + 1 -- integrates below adjustment
+    elseif newIndex > oldIndex then
+        newIndex = newIndex + 1
+    end
+    local finalIndex = MoveItemInList(self.itemOrder, oldIndex, newIndex, id)
+
+    if finalIndex ~= oldIndex then
+        self.dirty = true
+        self:InvalidateLayout(false)
+    end
 end
 
 function DDragList_TTT2PMS:Paint(w, h)
