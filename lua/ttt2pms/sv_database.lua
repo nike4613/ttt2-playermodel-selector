@@ -395,6 +395,8 @@ local function UpdateModelSettingsForCmd(model, bodygroupSettings, skinSettings,
 end
 
 local modelDataCache = {}
+---@param model string
+---@return {numBodygroups: integer, numSkins: integer, bgCounts: table<number, integer>}?
 local function GetModelData(model)
     if not model then
         return nil
@@ -403,27 +405,24 @@ local function GetModelData(model)
         return modelDataCache[model]
     end
 
-    print("[TTT2PMS] GetModelData: Fetching data for " .. model)
+    local mdlPath = player_manager.TranslatePlayerModel(model)
+    local mdlInfo = util.GetModelInfo(mdlPath)
+
     local ent = ents.Create("prop_dynamic")
     if not ent then
-        print("[TTT2PMS] GetModelData: Failed to create prop_dynamic")
+        ErrorNoHalt(
+            "[TTT2PMS] GetModelData: Failed to create prop_dynamic to get model data for "
+                .. mdlPath
+        )
         modelDataCache[model] = nil
         return nil
     end
 
-    ent:SetModel(model)
+    ent:SetModel(mdlPath)
+    ent:Spawn()
 
     local bgs = ent:GetBodyGroups()
-    local skins = ent:SkinCount()
-    print(
-        "[TTT2PMS] GetModelData: "
-            .. model
-            .. " has "
-            .. #bgs
-            .. " bodygroups and "
-            .. skins
-            .. " skins"
-    )
+    local skins = mdlInfo.SkinCount
 
     local data = {
         numBodygroups = #bgs,
@@ -442,77 +441,131 @@ local function GetModelData(model)
 end
 
 local function BodygroupSetAutocomplete(cmd, argStr, args)
-    local count = #args
-    if count == 0 then
-        local models = ttt2pms.db.GetModels()
-        local options = {}
-        for k, _ in pairs(models) do
-            options[#options + 1] = cmd .. argStr .. k
-        end
-        return options
+    -- Determine which argument index we are currently completing.
+    -- If the string ends in a space, we are starting a new argument.
+    local n = #args
+    if n == 0 or string.sub(argStr, -1) == " " then
+        n = n + 1
     end
 
-    local rem = count % 3
-    if rem == 1 then
-        -- suggesting a bodygroup
-        local model = args[1]
-        local data = GetModelData(model)
-        local options = { cmd .. argStr .. " skin" }
-        if data then
-            for i = 0, data.numBodygroups - 1 do
-                options[#options + 1] = cmd .. argStr .. " " .. i
+    local options = {}
+    local filter = (n <= #args) and args[n] or ""
+    local preStr = cmd .. string.sub(argStr, 1, #argStr - #filter)
+    if string.sub(preStr, -1) == "\"" then
+        preStr = string.sub(preStr, 1, -1)
+    end
+
+    -- Case 1: The user is typing the model name.
+    if n == 1 then
+        local pmodels = ttt2pms.db.GetModels()
+        local models = table.GetKeys(pmodels)
+
+        -- for the model name, we also want to add non-specified models (after the specified ones)
+        local selected = playermodels.GetSelectedModels()
+        for i = 1, #selected do
+            local mdl = selected[i] --[[@as string]]
+            if not pmodels[mdl] then
+                models[#models + 1] = mdl
+            end
+        end
+
+        local passed = {}
+        for _, v in ipairs(args) do
+            passed[v] = true
+        end
+
+        if filter == "" then
+            for _, k in ipairs(models) do
+                if not passed[k] then
+                    options[#options + 1] = preStr .. "\"" .. k .. "\""
+                end
+            end
+        else
+            local InFilter = ttt2pms.util.FilterMatcher(filter)
+            for _, k in ipairs(models) do
+                if InFilter(k) and not passed[k] then
+                    options[#options + 1] = preStr .. "\"" .. k .. "\""
+                end
             end
         end
         return options
-    elseif rem == 2 then
-        -- suggesting a type
-        return { cmd .. argStr .. " pos", cmd .. argStr .. " neg" }
-    elseif rem == 0 and count > 0 then
-        -- suggesting a value set
+    -- Case 2: The user is typing a bodygroup ID or the keyword "skin".
+    elseif n % 3 == 2 then
         local model = args[1]
-        local bgSpec = args[count - 1]
         local data = GetModelData(model)
+        local possible = { "skin" }
+        if data then
+            for i = 0, data.numBodygroups - 1 do
+                possible[#possible + 1] = tostring(i)
+            end
+        end
+        for _, v in ipairs(possible) do
+            if string.StartsWith(v, filter) then
+                options[#options + 1] = preStr .. v
+            end
+        end
+        return options
+    -- Case 3: The user is typing the mode ("pos" or "neg").
+    elseif n % 3 == 0 then
+        local possible = { "pos", "neg" }
+        for _, v in ipairs(possible) do
+            if string.StartsWith(v, filter) then
+                options[#options + 1] = preStr .. v
+            end
+        end
+        return options
+    -- Case 4: The user is typing the comma-separated list of values.
+    elseif n % 3 == 1 then
+        local model = args[1]
+        local bgSpec = args[n - 2]
+        local data = GetModelData(model)
+
         if not data then
             return {}
         end
 
-        local options = {}
         local possible = {}
         if bgSpec == "skin" then
             for i = 0, data.numSkins - 1 do
-                possible[#possible + 1] = i
+                possible[#possible + 1] = tostring(i)
             end
         else
             local bgId = tonumber(bgSpec)
             if bgId then
                 local valCount = data.bgCounts[bgId] or 0
                 for i = 0, valCount - 1 do
-                    possible[#possible + 1] = i
+                    possible[#possible + 1] = tostring(i)
                 end
             end
         end
 
         if #possible > 0 then
-            local parts = string.Split(args[#args], ",")
+            -- Handle comma-separated lists: we only autocomplete the last segment.
+            local parts = string.Split(filter, ",")
             local currentPartial = parts[#parts]
             local entered = {}
             for i = 1, #parts - 1 do
                 entered[tonumber(parts[i])] = true
             end
 
+            -- Reconstruct the string up to the current partial match.
+            local prefixInArg = ""
+            for i = 1, #parts - 1 do
+                prefixInArg = prefixInArg .. parts[i] .. ","
+            end
+            local fullPreStr = preStr .. prefixInArg
+
             for _, v in ipairs(possible) do
-                local vs = tostring(v)
-                if not entered[v] and string.StartsWith(vs, currentPartial) then
-                    options[#options + 1] = cmd
-                        .. string.sub(argStr, 1, #argStr - #currentPartial)
-                        .. vs
+                if not entered[tonumber(v)] and string.StartsWith(v, currentPartial) then
+                    options[#options + 1] = fullPreStr .. v
                 end
             end
         end
-
         return options
     end
-    return {}
+
+    -- unreachable
+    return options
 end
 
 local function ClearModelAutocomplete(cmd, argStr, args)
