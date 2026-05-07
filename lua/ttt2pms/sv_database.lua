@@ -303,11 +303,59 @@ function ttt2pms.db.ClearSettings(field)
     bodygroupModelsTbl = nil
 end
 
+local modelDataCache = {}
+---@param model string
+---@return {numSkins: integer, bgs: table<number, BodyGroupData>}?
+local function GetModelData(model)
+    if not model then
+        return nil
+    end
+    if modelDataCache[model] then
+        return modelDataCache[model]
+    end
+
+    local mdlPath = player_manager.TranslatePlayerModel(model)
+
+    local ent = ents.Create("prop_dynamic")
+    if not ent then
+        ErrorNoHalt(
+            "[TTT2PMS] GetModelData: Failed to create prop_dynamic to get model data for "
+                .. mdlPath
+        )
+        modelDataCache[model] = nil
+        return nil
+    end
+
+    ent:SetModel(mdlPath)
+    ent:Spawn()
+
+    local bgs = ent:GetBodyGroups()
+    local skins = ent:SkinCount()
+
+    local bgs2 = {}
+    for _, v in ipairs(bgs) do
+        bgs2[v.id] = v
+    end
+
+    local data = {
+        bgs = bgs2,
+        numSkins = skins,
+    }
+
+    ent:Remove()
+
+    modelDataCache[model] = data
+    return data
+end
+
 ---
 ---@param args table<string>
 ---@return table<number, BodygroupServer>
 ---@return BodygroupServer|nil
 local function ParseBodygroupSetCmdArgs(args)
+    local model = args[1]
+    local data = GetModelData(model)
+
     ---@type table<number,BodygroupServer>
     local bodygroupSettings = {}
     ---@type nil|BodygroupServer
@@ -319,7 +367,24 @@ local function ParseBodygroupSetCmdArgs(args)
         local bodygroup = tonumber(bodygroupStr)
         i = i + 1
         if bodygroup == nil and bodygroupStr ~= "skin" then
-            error("bodygroup specifier '" .. bodygroupStr .. "' must be integer or 'skin'")
+            local foundId = nil
+            if data then
+                for id, bg in pairs(data.bgs) do
+                    if bg.name == bodygroupStr then
+                        foundId = id
+                        break
+                    end
+                end
+            end
+            if foundId then
+                bodygroup = foundId
+            else
+                error(
+                    "bodygroup specifier '"
+                        .. bodygroupStr
+                        .. "' must be integer, 'skin', or a valid bodygroup name"
+                )
+            end
         end
 
         if i > #args then
@@ -394,51 +459,6 @@ local function UpdateModelSettingsForCmd(model, bodygroupSettings, skinSettings,
     ttt2pms.db.SetModelOptions(pm)
 end
 
-local modelDataCache = {}
----@param model string
----@return {numSkins: integer, bgs: table<number, BodyGroupData>}?
-local function GetModelData(model)
-    if not model then
-        return nil
-    end
-    if modelDataCache[model] then
-        return modelDataCache[model]
-    end
-
-    local mdlPath = player_manager.TranslatePlayerModel(model)
-
-    local ent = ents.Create("prop_dynamic")
-    if not ent then
-        ErrorNoHalt(
-            "[TTT2PMS] GetModelData: Failed to create prop_dynamic to get model data for "
-                .. mdlPath
-        )
-        modelDataCache[model] = nil
-        return nil
-    end
-
-    ent:SetModel(mdlPath)
-    ent:Spawn()
-
-    local bgs = ent:GetBodyGroups()
-    local skins = ent:SkinCount()
-
-    local bgs2 = {}
-    for _, v in ipairs(bgs) do
-        bgs2[v.id] = v
-    end
-
-    local data = {
-        bgs = bgs2,
-        numSkins = skins,
-    }
-
-    ent:Remove()
-
-    modelDataCache[model] = data
-    return data
-end
-
 local function BodygroupSetAutocomplete(cmd, argStr, args)
     -- Determine which argument index we are currently completing.
     -- If the string ends in a space, we are starting a new argument.
@@ -488,19 +508,29 @@ local function BodygroupSetAutocomplete(cmd, argStr, args)
             end
         end
         return options
-    -- Case 2: The user is typing a bodygroup ID or the keyword "skin".
+    -- Case 2: The user is typing a bodygroup ID, name, or the keyword "skin".
     elseif n % 3 == 2 then
         local model = args[1]
         local data = GetModelData(model)
         local possible = { "skin" }
         if data then
-            for i = 0, #data.bgs - 1 do
-                possible[#possible + 1] = tostring(i)
+            for id, bg in pairs(data.bgs) do
+                if bg.name and bg.name ~= "" and bg.name ~= "skin" then
+                    possible[#possible + 1] = bg.name
+                else
+                    possible[#possible + 1] = tostring(id)
+                end
             end
         end
+
+        local InFilter = ttt2pms.util.FilterMatcher(filter)
         for _, v in ipairs(possible) do
-            if string.StartsWith(v, filter) then
-                options[#options + 1] = preStr .. v
+            if InFilter(v) then
+                local displayV = v
+                if v ~= "skin" and not tonumber(v) then
+                    displayV = "\"" .. v .. "\""
+                end
+                options[#options + 1] = preStr .. displayV
             end
         end
         return options
@@ -523,18 +553,25 @@ local function BodygroupSetAutocomplete(cmd, argStr, args)
             return {}
         end
 
+        local bgId = tonumber(bgSpec)
+        if not bgId and bgSpec ~= "skin" then
+            for id, bg in pairs(data.bgs) do
+                if bg.name == bgSpec then
+                    bgId = id
+                    break
+                end
+            end
+        end
+
         local possible = {}
         if bgSpec == "skin" then
             for i = 0, data.numSkins - 1 do
                 possible[#possible + 1] = tostring(i)
             end
-        else
-            local bgId = tonumber(bgSpec)
-            if bgId then
-                local valCount = data.bgs[bgId].num or 0
-                for i = 0, valCount - 1 do
-                    possible[#possible + 1] = tostring(i)
-                end
+        elseif bgId then
+            local valCount = data.bgs[bgId].num or 0
+            for i = 0, valCount - 1 do
+                possible[#possible + 1] = tostring(i)
             end
         end
 
@@ -713,11 +750,17 @@ concommand.Add("ttt2_pms_print_bodygroup_settings", function()
         end
 
         print(
-            "ttt2_pms_" .. type .. "_bodygroups_set",
-            "\"" .. mdl .. "\"",
-            groupName,
-            bgroup.mode,
-            table.concat(bgroup.values, ",")
+            "ttt2_pms_"
+                .. type
+                .. "_bodygroups_set "
+                .. "\""
+                .. mdl
+                .. "\" "
+                .. groupName
+                .. " "
+                .. bgroup.mode
+                .. " "
+                .. table.concat(bgroup.values, ",")
         )
     end
 
