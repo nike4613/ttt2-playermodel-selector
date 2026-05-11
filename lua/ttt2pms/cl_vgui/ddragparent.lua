@@ -513,7 +513,9 @@ function DDragParent_TTT2PMS:Think()
             if parent:GetName() == "DScrollPanelTTT2" then
                 ---@cast parent DScrollPanelTTT2
                 -- we're in a scroll panel, we can actually do our work
-                parent:GetVBar():AddScroll((thinkTime - self.lastThinkTime) * 30 * dir)
+                parent
+                    :GetVBar()
+                    :AddScroll((thinkTime - (self.lastThinkTime or thinkTime)) * 30 * dir)
             end
         end
 

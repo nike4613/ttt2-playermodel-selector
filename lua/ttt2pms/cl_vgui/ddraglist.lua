@@ -139,7 +139,7 @@ end
 ---Adds a list of items to the drag list, in order.
 ---@param items table<T>
 function DDragList_TTT2PMS:AddItems(items)
-    for i = 1, #items + 1 do
+    for i = 1, #items do
         self:AddItem(items[i])
     end
 end
@@ -149,7 +149,7 @@ end
 ---@param value T
 ---@return integer
 local function IndexOf(tbl, value)
-    for i = 1, #tbl + 1 do
+    for i = 1, #tbl do
         if tbl[i] == value then
             return i
         end
