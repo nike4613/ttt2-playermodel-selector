@@ -10,8 +10,6 @@ ttt2pms.cl = ttt2pms.cl or {}
 ---@field private pnlFormBodygroups DFormTTT2
 ---@field private pnlIconLayout DIconLayout
 ---
----@field OnChanged? fun(plymodel: Playermodel)
----
 ---@field private modelDirty boolean
 ---@field private plymodel Playermodel
 ---@field private plymodelSettings PlayermodelSettings
@@ -24,6 +22,8 @@ ttt2pms.cl = ttt2pms.cl or {}
 local ModelSelectorPanel_TTT2PMS = {}
 
 local materialReset = Material("vgui/ttt/vskin/icon_reset")
+
+local markerWarningNotOverridden = {}
 
 function ModelSelectorPanel_TTT2PMS:Init()
     local TryT = LANG.TryTranslation
@@ -132,7 +132,27 @@ function ModelSelectorPanel_TTT2PMS:Init()
     btnApply:SetText("ttt2pms_select_model_apply")
     btnApply:SetSize(96, 32)
     btnApply.DoClick = function()
-        -- TODO:
+        local suppressMsg, marker = self:OnModelSelected()
+        if marker == markerWarningNotOverridden then
+            ErrorNoHalt(
+                "Playermodel selector does not have location to send selected playermodel! User is selecting nothing!"
+            )
+        end
+
+        if suppressMsg then
+            return
+        end
+
+        local type, msg
+        if marker == markerWarningNotOverridden then
+            type = NOTIFY_ERROR
+            msg = "ttt2pms_select_model_wrn_not_bound"
+        else
+            type = NOTIFY_GENERIC
+            msg = "ttt2pms_select_model_inf_applied"
+        end
+
+        notification.AddLegacy(TryT(msg), type, 5)
     end
     self.btnApply = btnApply
 
@@ -487,6 +507,13 @@ end
 ---@param col Color
 function ModelSelectorPanel_TTT2PMS:SetServerColor(col)
     self.serverColor = col
+    if self.plymodelSettings then
+        self.pnlModel:SetGlobalSettings(
+            self.plymodelSettings.defaultColorMode,
+            self.plymodelSettings.globalColor,
+            self.serverColor
+        )
+    end
     self:InvalidateLayout(false)
 end
 
@@ -500,10 +527,18 @@ function ModelSelectorPanel_TTT2PMS:SetPlayerModel(model)
     self:InvalidateLayout(false)
 end
 
----comment
+---
 ---@return Playermodel
 function ModelSelectorPanel_TTT2PMS:GetPlayerModel()
     return table.Copy(self.plymodel)
+end
+
+---This method is called when the playermodel selection is modified (and *applied*) by a user. It is
+---expected to be replaced by panel users.
+---@hook
+---@return boolean? suppressNotification
+function ModelSelectorPanel_TTT2PMS:OnModelSelected()
+    return false, markerWarningNotOverridden ---@diagnostic disable-line
 end
 
 derma.DefineControl(
@@ -517,6 +552,7 @@ derma.DefineControl(
 ---@field initialModel Playermodel
 ---@field userSettings PlayermodelSettings
 ---@field serverColor Color
+---@field OnSelected? fun(model: Playermodel): boolean?
 
 ---
 ---@param options ModelSelectorPanelOptions
@@ -554,6 +590,13 @@ function ttt2pms.cl.ShowModelSelectPopup(options)
     selectorPanel:SetUserSettings(options.userSettings)
     selectorPanel:SetServerColor(options.serverColor)
     selectorPanel:SetPlayerModel(table.Copy(options.initialModel))
+
+    local fn = options.OnSelected
+    if fn then
+        selectorPanel.OnModelSelected = function(pnl)
+            return fn(pnl:GetPlayerModel())
+        end
+    end
 
     return frame
 end

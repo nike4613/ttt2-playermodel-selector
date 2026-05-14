@@ -8,6 +8,9 @@ L.submenu_customization_selector = "Player Model Selector"
 L.ttt2pms_select_model_title = "Select Player Model"
 L.ttt2pms_select_model_reset_model = "Reset"
 L.ttt2pms_select_model_apply = "Apply"
+L.ttt2pms_select_model_wrn_not_bound =
+    "Apply button not bound. THIS IS THE FAULT OF WHATEVER LAUNCHED THE SELECTOR"
+L.ttt2pms_select_model_inf_applied = "Selected options applied."
 
 L.ttt2pms_select_model_color_header = "Player Color"
 
